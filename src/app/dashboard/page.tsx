@@ -38,7 +38,7 @@ export default function DashboardPage() {
       });
     fetch("/api/v2/bookings")
       .then((r) => r.json())
-      .then(setBookings)
+      .then((d) => setBookings(d.data || []))
       .finally(() => setLoading(false));
   }, []);
 
