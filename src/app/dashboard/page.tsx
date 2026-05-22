@@ -19,6 +19,7 @@ interface Booking {
   startTime: string;
   endTime: string;
   status: string;
+  eventTypeId?: string;
   eventType: { title: string; slug: string };
 }
 
@@ -38,9 +39,35 @@ export default function DashboardPage() {
       });
     fetch("/api/v2/bookings")
       .then((r) => r.json())
-      .then((d) => setBookings(d.data || []))
+      .then((d) => {
+        // Normalize Cal.com API format to internal format
+        const normalized = (d.data || []).map((b: any) => ({
+          id: b.id,
+          guestName: b.attendees?.[0]?.name || "",
+          guestEmail: b.attendees?.[0]?.email || "",
+          startTime: b.start,
+          endTime: b.end,
+          status: b.status === "accepted" ? "confirmed" : b.status,
+          eventTypeId: b.eventTypeId,
+          eventType: { title: "", slug: "" },
+        }));
+        setBookings(normalized);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  // Enrich bookings with event type names once both datasets are loaded
+  useEffect(() => {
+    if (eventTypes.length > 0 && bookings.length > 0) {
+      const map = new Map(eventTypes.map((et) => [et.id, et]));
+      setBookings((prev) =>
+        prev.map((b) => {
+          const et = map.get((b as any).eventTypeId);
+          return et ? { ...b, eventType: { title: et.title, slug: et.slug } } : b;
+        })
+      );
+    }
+  }, [eventTypes, bookings.length]);
 
   async function createEventType(e: React.FormEvent) {
     e.preventDefault();
