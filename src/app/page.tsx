@@ -19,7 +19,7 @@ function Page() {
       {/* Nav */}
       <nav className="fixed top-0 w-full z-40" style={{ background: "rgba(10,14,26,0.85)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(212,168,83,0.08)" }}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="text-xl font-bold gold-gradient">RDV-QC</span>
+          <span className="text-xl font-bold gold-gradient">Planxo</span>
           <div className="flex items-center gap-3">
             <button onClick={toggleLang} className="text-sm text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-white/10 hover:border-gold/30">
               {lang === "fr" ? "EN" : "FR"}
@@ -162,7 +162,7 @@ function Page() {
 
       {/* Footer */}
       <footer className="py-8 border-t border-white/5 text-center">
-        <p className="text-sm text-slate-600">RDV-QC © {new Date().getFullYear()} — {t.footer.rights}</p>
+        <p className="text-sm text-slate-600">Planxo © {new Date().getFullYear()} — {t.footer.rights}</p>
       </footer>
     </div>
   );

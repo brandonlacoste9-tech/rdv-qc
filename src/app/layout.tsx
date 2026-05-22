@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RDV-QC — Planification de rendez-vous simplifiée",
+  title: "Planxo — Planification de rendez-vous simplifiée | RDV en ligne Québec",
   description: "L'outil de planification #1 pour les professionnels québécois. Connectez vos calendriers, partagez votre lien et laissez vos clients réserver en ligne.",
 };
 
