@@ -34,8 +34,9 @@ export async function POST(request: NextRequest) {
   else if (eventType.location === "teams") meetingUrl = `https://teams.microsoft.com/l/meetup-join/${rand()}`;
 
   const now = new Date().toISOString();
+  const bookingId = crypto.randomUUID();
   const { data: booking, error } = await supabase.from("Booking").insert({
-    eventTypeId, userId: eventType.userId, guestName, guestEmail,
+    id: bookingId, eventTypeId, userId: eventType.userId, guestName, guestEmail,
     guestNotes: guestNotes || "", startTime, endTime, status: "confirmed",
     paid: eventType.price === 0, meetingUrl, updatedAt: now,
   }).select().single();
