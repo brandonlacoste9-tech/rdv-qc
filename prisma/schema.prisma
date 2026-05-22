@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  name      String
+  email     String   @unique
+  avatarUrl String?
+  timeZone  String   @default("America/Toronto")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  eventTypes EventType[]
+  schedules  Schedule[]
+  bookings   Booking[]
+}
+
+model EventType {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  slug        String   @unique
+  description String?
+  length      Int      @default(30) // minutes
+  location    String   @default("google-meet") // google-meet, zoom, phone, in-person
+  color       String   @default("#242424")
+  isActive    Boolean  @default(true)
+  minNotice   Int      @default(60) // minutes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  bookings Booking[]
+
+  @@index([userId])
+  @@index([slug])
+}
+
+model Schedule {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   @default("Heures de travail")
+  timeZone  String   @default("America/Toronto")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User          @relation(fields: [userId], references: [id])
+  intervals Availability[]
+
+  @@index([userId])
+}
+
+model Availability {
+  id         String   @id @default(cuid())
+  scheduleId String
+  dayOfWeek  Int      // 0=Sun, 1=Mon, ..., 6=Sat
+  startTime  String   // "09:00"
+  endTime    String   // "17:00"
+  isActive   Boolean  @default(true)
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+
+  @@index([scheduleId])
+}
+
+model Booking {
+  id          String   @id @default(cuid())
+  eventTypeId String
+  userId      String   // host
+  guestName   String
+  guestEmail  String
+  guestNotes  String?
+  startTime   DateTime
+  endTime     DateTime
+  status      String   @default("confirmed") // confirmed, cancelled, rescheduled
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  eventType EventType @relation(fields: [eventTypeId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([eventTypeId])
+  @@index([userId])
+  @@index([startTime])
+}
