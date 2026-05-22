@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 :root {
   --bg-base: #06080f;
   --bg-card: rgba(17, 24, 39, 0.6);
