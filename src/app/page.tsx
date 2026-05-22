@@ -17,10 +17,10 @@ export default function HomePage() {
       { icon: "👥", title: "Lien d'équipe", desc: "Partagez une page commune pour toute votre équipe.", color: "#ec4899" },
     ],
     footer: {
-      product: { title: "Produit", links: ["Types de rendez-vous", "Disponibilités", "Rappels", "Paiements", "Intégrations"] },
-      solutions: { title: "Solutions", links: ["Professionnels", "Équipes", "Entreprises", "Développeurs", "API"] },
-      resources: { title: "Ressources", links: ["Blog", "Documentation", "API Reference", "Status", "Support"] },
-      company: { title: "Entreprise", links: ["À propos", "Carrières", "Contact", "Confidentialité", "Conditions"] },
+      product: { title: "Produit", links: ["Types de rendez-vous", "Disponibilités", "Rappels", "Paiements", "Intégrations"], hrefs: ["/consultation-30min", "/settings", "/dashboard", "/settings", "/settings"] },
+      solutions: { title: "Solutions", links: ["Professionnels", "Équipes", "Entreprises", "Développeurs", "API"], hrefs: ["/appel-15min", "/reunion-1h", "/consultation-30min", "/dashboard", "/api/v2/me"] },
+      resources: { title: "Ressources", links: ["Documentation", "API Reference", "Status", "Support", "Paramètres"], hrefs: ["/api/v2/me", "https://cal.com/docs/api-reference/v2/introduction", "/dashboard", "mailto:info@planxo.ca", "/settings"] },
+      company: { title: "Entreprise", links: ["À propos", "Carrières", "Contact", "Confidentialité", "Conditions"], hrefs: ["/", "/", "mailto:info@planxo.ca", "/", "/"] },
     },
   };
   const trustLogos = ["Desjardins", "Bombardier", "Québecor", "Coveo", "Lightspeed", "SNC-Lavalin"];
@@ -40,7 +40,7 @@ export default function HomePage() {
               <span style={{ fontFamily: "'Cal Sans', 'Inter', sans-serif", fontSize: 22, fontWeight: 700, color: "#242424", letterSpacing: "-0.5px" }}>Planxo</span>
             </a>
             <nav style={{ display: "flex", gap: 24, fontSize: 14, fontWeight: 500 }}>
-              {[{ label: "Solutions", href: "#how" }, { label: "Entreprise", href: "#pricing" }, { label: "Planxo IA", href: "/appel-15min" }, { label: "Développeur", href: "/dashboard" }, { label: "Tarifs", href: "#pricing" }].map(l => (
+              {[{ label: "Solutions", href: "#how" }, { label: "Entreprise", href: "#pricing" }, { label: "Planxo IA", href: "/appel-15min" }, { label: "Développeur", href: "/settings" }, { label: "Tarifs", href: "#pricing" }].map(l => (
                 <a key={l.label} href={l.href} style={{ color: "#898989", textDecoration: "none", transition: "color .15s" }} className="nav-link">{l.label}</a>
               ))}
             </nav>
@@ -212,8 +212,8 @@ export default function HomePage() {
           {[t.footer.product, t.footer.solutions, t.footer.resources, t.footer.company].map((col, i) => (
             <div key={i}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#242424", marginBottom: 14, textTransform: "uppercase", letterSpacing: 0.5 }}>{col.title}</div>
-              {col.links.map(l => (
-                <a key={l} href="#" style={{ display: "block", fontSize: 13, color: "#898989", textDecoration: "none", marginBottom: 8, transition: "color .15s" }} className="footer-link">{l}</a>
+              {col.links.map((l, j) => (
+                <a key={l} href={col.hrefs[j]} style={{ display: "block", fontSize: 13, color: "#898989", textDecoration: "none", marginBottom: 8, transition: "color .15s" }} className="footer-link">{l}</a>
               ))}
             </div>
           ))}
