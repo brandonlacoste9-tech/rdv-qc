@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
 
   let event;
   try {
+    const stripe = getStripe();
     event = stripe.webhooks.constructEvent(body, sig, signingSecret);
   } catch (err: any) {
     return NextResponse.json({ error: `Webhook signature verification failed: ${err.message}` }, { status: 400 });
@@ -26,7 +27,6 @@ export async function POST(request: NextRequest) {
           await supabase.from("Booking").update({
             paid: true,
             status: "confirmed",
-            paymentId: session.id,
             updatedAt: new Date().toISOString(),
           }).eq("id", bookingId);
         }
