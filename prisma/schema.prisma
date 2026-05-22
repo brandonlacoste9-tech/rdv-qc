@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -27,11 +28,11 @@ model EventType {
   title       String
   slug        String   @unique
   description String?
-  length      Int      @default(30) // minutes
-  location    String   @default("google-meet") // google-meet, zoom, phone, in-person
+  length      Int      @default(30)
+  location    String   @default("google-meet")
   color       String   @default("#242424")
   isActive    Boolean  @default(true)
-  minNotice   Int      @default(60) // minutes
+  minNotice   Int      @default(60)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -60,9 +61,9 @@ model Schedule {
 model Availability {
   id         String   @id @default(cuid())
   scheduleId String
-  dayOfWeek  Int      // 0=Sun, 1=Mon, ..., 6=Sat
-  startTime  String   // "09:00"
-  endTime    String   // "17:00"
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
   isActive   Boolean  @default(true)
 
   schedule Schedule @relation(fields: [scheduleId], references: [id])
@@ -73,13 +74,13 @@ model Availability {
 model Booking {
   id          String   @id @default(cuid())
   eventTypeId String
-  userId      String   // host
+  userId      String
   guestName   String
   guestEmail  String
   guestNotes  String?
   startTime   DateTime
   endTime     DateTime
-  status      String   @default("confirmed") // confirmed, cancelled, rescheduled
+  status      String   @default("confirmed")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
