@@ -17,22 +17,44 @@ export async function POST(request: NextRequest) {
 
   const eventType = await prisma.eventType.findUnique({
     where: { id: eventTypeId },
+    include: { user: true },
   });
 
-  if (!eventType) {
+  if (!eventType || !eventType.isActive) {
     return NextResponse.json({ error: "Event type not found" }, { status: 404 });
+  }
+
+  // Daily cap check
+  if (eventType.maxPerDay !== null) {
+    const dayStart = new Date(`${date}T00:00:00`);
+    const dayEnd = new Date(`${date}T23:59:59`);
+    const dailyCount = await prisma.booking.count({
+      where: {
+        eventTypeId,
+        status: { not: "cancelled" },
+        startTime: { gte: dayStart, lte: dayEnd },
+      },
+    });
+    if (dailyCount >= eventType.maxPerDay) {
+      return NextResponse.json(
+        { error: "Aucun créneau disponible — limite quotidienne atteinte." },
+        { status: 409 }
+      );
+    }
   }
 
   const startTime = new Date(`${date}T${time}:00`);
   const endTime = new Date(startTime.getTime() + eventType.length * 60000);
 
-  // Check for conflicts
+  // Conflict check (with buffer)
+  const bufferBefore = eventType.bufferBefore;
+  const bufferAfter = eventType.bufferAfter;
   const conflict = await prisma.booking.findFirst({
     where: {
       eventTypeId,
       status: { not: "cancelled" },
-      startTime: { lt: endTime },
-      endTime: { gt: startTime },
+      startTime: { lt: new Date(endTime.getTime() + bufferAfter * 60000) },
+      endTime: { gt: new Date(startTime.getTime() - bufferBefore * 60000) },
     },
   });
 
@@ -41,6 +63,16 @@ export async function POST(request: NextRequest) {
       { error: "Ce créneau n'est plus disponible." },
       { status: 409 }
     );
+  }
+
+  // Generate meeting URL based on location type
+  let meetingUrl: string | null = null;
+  if (eventType.location === "google-meet") {
+    meetingUrl = `https://meet.google.com/${randomMeetCode()}`;
+  } else if (eventType.location === "zoom") {
+    meetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 9999999999)}`;
+  } else if (eventType.location === "teams") {
+    meetingUrl = `https://teams.microsoft.com/l/meetup-join/${randomMeetCode()}`;
   }
 
   const booking = await prisma.booking.create({
@@ -53,8 +85,37 @@ export async function POST(request: NextRequest) {
       startTime,
       endTime,
       status: "confirmed",
+      paid: eventType.price === 0, // free events are auto-paid
+      meetingUrl,
     },
   });
+
+  // Fire webhooks
+  const userWebhooks = await prisma.webhook.findMany({
+    where: { userId: eventType.userId, isActive: true },
+  });
+
+  for (const wh of userWebhooks) {
+    if (wh.events.includes("booking.created")) {
+      fetch(wh.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "booking.created",
+          booking: {
+            id: booking.id,
+            guestName: booking.guestName,
+            guestEmail: booking.guestEmail,
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+            status: booking.status,
+            meetingUrl: booking.meetingUrl,
+          },
+          eventType: { id: eventType.id, title: eventType.title, slug: eventType.slug },
+        }),
+      }).catch(() => {}); // fire-and-forget
+    }
+  }
 
   return NextResponse.json(booking, { status: 201 });
 }
@@ -71,4 +132,14 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json(bookings);
+}
+
+function randomMeetCode(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz";
+  let code = "";
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 4; j++) code += chars[Math.floor(Math.random() * chars.length)];
+    if (i < 2) code += "-";
+  }
+  return code;
 }

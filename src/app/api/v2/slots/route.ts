@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const eventTypeId = searchParams.get("eventTypeId");
-  const dateStr = searchParams.get("date"); // YYYY-MM-DD
+  const dateStr = searchParams.get("date");
   const timeZone = searchParams.get("timeZone") || "America/Toronto";
 
   if (!eventTypeId || !dateStr) {
@@ -31,32 +31,22 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  if (!eventType) {
+  if (!eventType || !eventType.isActive) {
     return NextResponse.json({ error: "Event type not found" }, { status: 404 });
   }
 
-  // Find day of week (0=Sun, 6=Sat)
   const date = new Date(dateStr + "T12:00:00");
   const dayOfWeek = date.getDay();
 
-  // Get availability for this day
   const schedule = eventType.user.schedules[0];
-  if (!schedule) {
-    return NextResponse.json({ slots: [] });
-  }
+  if (!schedule) return NextResponse.json({ slots: [] });
 
-  const dayAvail = schedule.intervals.filter(
-    (i) => i.dayOfWeek === dayOfWeek
-  );
+  const dayAvail = schedule.intervals.filter((i) => i.dayOfWeek === dayOfWeek);
+  if (dayAvail.length === 0) return NextResponse.json({ slots: [] });
 
-  if (dayAvail.length === 0) {
-    return NextResponse.json({ slots: [] });
-  }
-
-  // Get existing bookings for this event type on this date
+  // Get existing bookings for this day
   const dayStart = new Date(dateStr + "T00:00:00");
   const dayEnd = new Date(dateStr + "T23:59:59");
-
   const bookings = await prisma.booking.findMany({
     where: {
       eventTypeId,
@@ -65,40 +55,70 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  // Generate 15-min slots
+  // Daily cap check
+  const bufferBefore = eventType.bufferBefore;
+  const bufferAfter = eventType.bufferAfter;
+  const maxPerDay = eventType.maxPerDay;
+
+  const dailyBookings = bookings.filter((b) => b.status === "confirmed").length;
+  const dailyCapReached = maxPerDay !== null && dailyBookings >= maxPerDay;
+
+  if (dailyCapReached) {
+    return NextResponse.json({
+      eventTypeId, date: dateStr, timeZone, length: eventType.length,
+      slots: [],
+      dailyCapReached: true,
+      dailyBookings,
+      maxPerDay,
+    });
+  }
+
+  // Generate slots with buffer awareness
   const slots: string[] = [];
+  const slotDuration = eventType.length;
+  const interval = 15;
+
   for (const avail of dayAvail) {
     const [startH, startM] = avail.startTime.split(":").map(Number);
     const [endH, endM] = avail.endTime.split(":").map(Number);
     const startMin = startH * 60 + startM;
     const endMin = endH * 60 + endM;
-    const slotDuration = eventType.length;
-    const interval = 15; // 15-min granularity
 
     for (let m = startMin; m + slotDuration <= endMin; m += interval) {
       const slotH = Math.floor(m / 60);
       const slotM = m % 60;
       const slotTime = `${String(slotH).padStart(2, "0")}:${String(slotM).padStart(2, "0")}`;
 
-      // Check if slot conflicts with existing bookings
+      // The slot window (excluding buffer)
       const slotStart = new Date(dateStr + `T${slotTime}:00`);
       const slotEnd = new Date(slotStart.getTime() + slotDuration * 60000);
 
-      const conflict = bookings.some(
-        (b) => slotStart < b.endTime && slotEnd > b.startTime
-      );
+      // Expanded window including buffer
+      const blockStart = new Date(slotStart.getTime() - bufferBefore * 60000);
+      const blockEnd = new Date(slotEnd.getTime() + bufferAfter * 60000);
 
-      if (!conflict) {
-        slots.push(slotTime);
-      }
+      // Check conflicts against expanded window
+      const conflict = bookings.some((b) => {
+        const bStart = new Date(b.startTime);
+        const bEnd = new Date(b.endTime);
+        // Expand existing booking by its own buffer too
+        const bBlockStart = new Date(bStart.getTime() - bufferBefore * 60000);
+        const bBlockEnd = new Date(bEnd.getTime() + bufferAfter * 60000);
+        return blockStart < bBlockEnd && blockEnd > bBlockStart;
+      });
+
+      if (!conflict) slots.push(slotTime);
     }
   }
 
   return NextResponse.json({
-    eventTypeId,
-    date: dateStr,
-    timeZone,
+    eventTypeId, date: dateStr, timeZone,
     length: eventType.length,
+    bufferBefore, bufferAfter,
+    maxPerDay, dailyBookings,
+    dailyCapReached: false,
+    price: eventType.price,
+    currency: eventType.currency,
     slots,
   });
 }

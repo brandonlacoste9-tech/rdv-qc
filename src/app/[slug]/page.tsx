@@ -9,7 +9,18 @@ interface EventType {
   description: string;
   length: number;
   location: string;
+  price: number;
+  currency: string;
   user: { name: string; username: string };
+}
+
+interface SlotResponse {
+  slots: string[];
+  price: number;
+  currency: string;
+  dailyCapReached: boolean;
+  dailyBookings: number;
+  maxPerDay: number | null;
 }
 
 export default function BookingPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -19,13 +30,20 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
   const [error, setError] = useState("");
   const [date, setDate] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
+  const [slotInfo, setSlotInfo] = useState<SlotResponse | null>(null);
   const [selectedSlot, setSelectedSlot] = useState("");
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", notes: "" });
-  const [booking, setBooking] = useState<{ status: string; guestName?: string } | null>(null);
+  const [booking, setBooking] = useState<{ status: string; guestName?: string; meetingUrl?: string } | null>(null);
+  const [timeZone, setTimeZone] = useState("America/Toronto");
 
   // Fetch event type by slug
   useEffect(() => {
+    // Auto-detect visitor timezone
+    try {
+      setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    } catch {}
+
     fetch("/api/v2/me")
       .then((r) => r.json())
       .then((user) => {
@@ -44,12 +62,16 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
   useEffect(() => {
     if (!eventType || !date) {
       setSlots([]);
+      setSlotInfo(null);
       return;
     }
     setLoadingSlots(true);
-    fetch(`/api/v2/slots?eventTypeId=${eventType.id}&date=${date}`)
+    fetch(`/api/v2/slots?eventTypeId=${eventType.id}&date=${date}&timeZone=${timeZone}`)
       .then((r) => r.json())
-      .then((data) => setSlots(data.slots || []))
+      .then((data) => {
+        setSlots(data.slots || []);
+        setSlotInfo(data);
+      })
       .finally(() => setLoadingSlots(false));
   }, [date, eventType]);
 
@@ -99,6 +121,11 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
             {" à "}
             {selectedSlot}
           </p>
+          {booking.meetingUrl && (
+            <a href={booking.meetingUrl} target="_blank" style={styles.meetingLink}>
+              📹 Rejoindre la réunion →
+            </a>
+          )}
           <p style={styles.confirmSubtext}>
             Un courriel de confirmation sera envoyé à {form.email}.
           </p>
@@ -141,8 +168,15 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
           <span style={styles.metaBadge}>
             {eventType.location === "google-meet" ? "📹 Google Meet" :
              eventType.location === "phone" ? "📞 Téléphone" :
-             eventType.location === "zoom" ? "📹 Zoom" : "📍 En personne"}
+             eventType.location === "zoom" ? "📹 Zoom" :
+             eventType.location === "teams" ? "📹 Teams" : "📍 En personne"}
           </span>
+          <span style={styles.metaBadge}>🌍 {timeZone}</span>
+          {eventType.price > 0 && (
+            <span style={{...styles.metaBadge, background: "#fef3c7", color: "#92400e", fontWeight: 700}}>
+              {(eventType.price / 100).toFixed(2)} {eventType.currency.toUpperCase()}
+            </span>
+          )}
         </div>
 
         {eventType.description && (
@@ -173,8 +207,13 @@ export default function BookingPage({ params }: { params: Promise<{ slug: string
               Choisissez une heure
               {loadingSlots && <span style={styles.muted}> — Chargement...</span>}
             </label>
-            {!loadingSlots && slots.length === 0 && (
+            {!loadingSlots && slots.length === 0 && !slotInfo?.dailyCapReached && (
               <p style={styles.muted}>Aucun créneau disponible pour cette date.</p>
+            )}
+            {slotInfo?.dailyCapReached && (
+              <p style={{...styles.muted, color: "#dc2626", fontWeight: 500}}>
+                Limite quotidienne atteinte ({slotInfo.dailyBookings}/{slotInfo.maxPerDay} rendez-vous).
+              </p>
             )}
             <div style={styles.slotGrid}>
               {slots.map((slot) => (
@@ -305,6 +344,11 @@ const styles: Record<string, React.CSSProperties> = {
   confirmTitle: { fontFamily: "'Cal Sans', sans-serif", fontSize: 24, fontWeight: 700, margin: "0 0 8px" },
   confirmText: { fontSize: 16, color: "#242424", lineHeight: 1.6, marginBottom: 8 },
   confirmSubtext: { fontSize: 13, color: "#898989", marginBottom: 24 },
+  meetingLink: {
+    display: "inline-block", marginBottom: 16, padding: "10px 20px",
+    background: "#ecfdf5", color: "#059669", borderRadius: 8,
+    textDecoration: "none", fontSize: 14, fontWeight: 600,
+  },
   backBtn: {
     display: "inline-block", padding: "12px 24px", borderRadius: 8,
     border: "1px solid rgba(0,0,0,0.12)", color: "#242424", textDecoration: "none",
