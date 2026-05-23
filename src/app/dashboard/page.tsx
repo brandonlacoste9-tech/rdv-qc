@@ -33,6 +33,14 @@ export default function DashboardPage() {
   const [newET, setNewET] = useState({ title: "", slug: "", length: 30, location: "google-meet", description: "" });
   const [copySuccess, setCopySuccess] = useState("");
   const { theme, colors, setTheme } = useTheme();
+  const dark = theme !== "default";
+  const tColors = dark ? {
+    bg: themes.cognac.bg, text: themes.cognac.text, textMuted: themes.cognac.textMuted,
+    cardBg: themes.cognac.cardBg, border: themes.cognac.border, accent: themes.cognac.accent,
+  } : {
+    bg: "#fff", text: "#242424", textMuted: "#898989",
+    cardBg: "#fff", border: "rgba(0,0,0,0.08)", accent: "#242424",
+  };
 
   useEffect(() => {
     fetch("/api/me")
@@ -101,11 +109,11 @@ export default function DashboardPage() {
   }
 
   if (loading) {
-    return <div style={styles.container}><p style={styles.muted}>Chargement...</p></div>;
+    return <div style={{ ...styles.container, color: tColors.text, background: tColors.bg }}><p style={styles.muted}>Chargement...</p></div>;
   }
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, color: tColors.text, background: tColors.bg }}>
       <style dangerouslySetInnerHTML={{ __html: `
         .dn-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:36px; }
         .dn-brand { font-family:'Cal Sans','Inter',sans-serif; font-size:28px; font-weight:700; color:#242424; text-decoration:none; letter-spacing:-0.5px; }
@@ -320,8 +328,6 @@ const styles: Record<string, React.CSSProperties> = {
     margin: "0 auto",
     padding: "24px 16px 80px",
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-    color: "#242424",
-    background: "#fff",
     minHeight: "100vh",
     position: "relative" as const,
     zIndex: 1,

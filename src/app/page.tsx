@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { PlanxoLogo } from "@/components/PlanxoLogo";
+import { useTheme, themes } from "@/lib/theme";
 
 function SignUpWithGoogle() {
   const supabase = createClient();
@@ -23,8 +24,9 @@ export default function HomePage() {
   const [pricingAnnual, setPricingAnnual] = useState(false);
   const [lang, setLang] = useState<"fr" | "en">("fr");
   const toggleLang = () => setLang(l => l === "fr" ? "en" : "fr");
-  const [dark, setDark] = useState(false);
-  const toggleDark = () => setDark(d => !d);
+  const { theme, setTheme } = useTheme();
+  const dark = theme !== "default";
+  const toggleDark = () => setTheme(dark ? "default" : "cognac");
 
   // Cognac dark theme colors
   const c = dark ? {
