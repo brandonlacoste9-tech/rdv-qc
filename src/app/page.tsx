@@ -30,7 +30,7 @@ export default function HomePage() {
 
   // Cognac dark theme colors
   const c = dark ? {
-    bg: "#1a1008", bg2: "#241810", text: "#e8d5c4", textMuted: "#a0896e",
+    bg: "#1a1008", bg2: "#241810", text: "#e8d5c4", textMuted: "#c4a882",
     accent: "#c47f3a", accentHover: "#d4944e", accentText: "#1a1008",
     border: "rgba(196,127,58,0.12)", cardBg: "#241810",
     navBg: "rgba(26,16,8,0.95)", ctaBg: "#c47f3a", ctaText: "#1a1008",
