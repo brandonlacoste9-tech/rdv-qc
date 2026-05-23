@@ -290,13 +290,16 @@ export default function DashboardPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    maxWidth: 960,
+    maxWidth: 1280,
+    width: "100%",
     margin: "0 auto",
-    padding: "40px 24px",
+    padding: "40px 32px",
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     color: "#242424",
     background: "#fff",
     minHeight: "100vh",
+    position: "relative" as const,
+    zIndex: 1,
   },
   header: {
     display: "flex",
@@ -328,7 +331,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   muted: { fontSize: 14, color: "#898989", margin: "4px 0 0" },
   backLink: { color: "#898989", textDecoration: "none", fontSize: 14, fontWeight: 500 },
-  statsRow: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 48 },
+  statsRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 48 },
   statCard: {
     padding: 24,
     borderRadius: 12,

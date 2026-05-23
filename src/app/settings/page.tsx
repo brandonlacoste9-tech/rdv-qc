@@ -167,10 +167,10 @@ function Field({ label, defaultValue, type = "text" }: { label: string; defaultV
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: "flex", minHeight: "100vh", fontFamily: "'Inter',system-ui,sans-serif",color:"#242424",background:"#fff" },
+  page: { display: "flex", minHeight: "100vh", fontFamily: "'Inter',system-ui,sans-serif",color:"#242424",background:"#fff",position:"relative",zIndex:1 },
   sidebar: { width: 220, padding: "28px 20px", borderRight: "1px solid rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", flexShrink: 0 },
   tabBtn: { display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", borderRadius: 8, border: "none", fontSize: 14, cursor: "pointer", fontFamily: "'Inter',sans-serif", textAlign: "left", marginBottom: 2, transition: "all .15s" },
-  content: { flex: 1, padding: "40px 48px", maxWidth: 700 },
+  content: { flex: 1, padding: "40px 48px", maxWidth: 960 },
   h1: { fontFamily: "'Cal Sans',sans-serif", fontSize: 24, fontWeight: 700, marginBottom: 6 },
   desc: { fontSize: 14, color: "#898989", marginBottom: 28 },
   card: { padding: 24, borderRadius: 12, border: "1px solid rgba(0,0,0,0.06)", background: "#fff" },
