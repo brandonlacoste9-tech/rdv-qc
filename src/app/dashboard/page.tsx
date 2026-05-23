@@ -46,6 +46,16 @@ export default function DashboardPage() {
   const [shareTarget, setShareTarget] = useState<EventType | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterValue>("upcoming");
   const { theme, colors, setTheme } = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   const dark = theme !== "default";
   const tColors = dark ? {
     bg: themes.cognac.bg, text: themes.cognac.text, textMuted: themes.cognac.textMuted,
@@ -164,42 +174,92 @@ export default function DashboardPage() {
           .dn-brand { font-size: 22px !important; }
         }
       `}} />
-      <div className="dn-nav">
-        <div>
-          <a href="/" className="dn-brand">Planxo</a>
-          <p style={styles.muted}>{userName ? `${userName} — Tableau de bord` : "Tableau de bord"}</p>
-        </div>
-        <div className="dn-menu">
-          <button className="dn-menu-btn" onClick={() => { const el = document.querySelector('.dn-dropdown'); if(el) el.classList.toggle('dn-open'); }}>
-            Menu <span style={{fontSize:10,color:"#898989"}}>▼</span>
+
+      {/* Mobile top bar */}
+      {isMobile && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: 20, paddingBottom: 14,
+          borderBottom: `1px solid ${tColors.border}`,
+        }}>
+          <a href="/" style={{ fontFamily: "'Cal Sans','Inter',sans-serif", fontSize: 22, fontWeight: 700, color: tColors.text, textDecoration: "none", letterSpacing: "-0.5px" }}>Planxo</a>
+          <button
+            onClick={() => setMobileMenuOpen(v => !v)}
+            style={{ background: "none", border: `1px solid ${tColors.border}`, borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, color: tColors.text, cursor: "pointer", fontFamily: "'Inter',sans-serif" }}
+          >
+            Menu {mobileMenuOpen ? "▲" : "▼"}
           </button>
-          <div className="dn-dropdown" onClick={(e) => { (e.target as HTMLElement).closest('.dn-dropdown')?.classList.remove('dn-open'); }}>
-            <a href="/dashboard" className="dn-item"><span>📊</span> Tableau de bord</a>
-            <a href="/settings" className="dn-item"><span>⚙️</span> Paramètres</a>
-            <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
-            <a href="/appel-15min" className="dn-item"><span>📅</span> Appel 15 min</a>
-            <a href="/consultation-30min" className="dn-item"><span>📅</span> Consultation 30 min</a>
-            <a href="/reunion-1h" className="dn-item"><span>📅</span> Réunion 1h</a>
-            <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
-            <a href="/api/v2/me" className="dn-item"><span>🔑</span> API</a>
-            <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
-            <div style={{padding:"8px 14px"}}>
-              <div style={{fontSize:11,fontWeight:600,color:"#898989",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Theme</div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                {(Object.entries(themes) as [ThemeName, typeof themes.default][]).map(([key, t]) => (
-                  <button key={key} onClick={() => setTheme(key)} title={t.name}
-                    style={{width:24,height:24,borderRadius:"50%",background:t.accent,border:theme===key?"2px solid white":"2px solid transparent",outline:theme===key?`2px solid ${t.accent}`:"none",cursor:"pointer",padding:0,boxShadow:theme===key?`0 0 0 2px ${t.accent}`:"none"}}
-                  />
-                ))}
-              </div>
-            </div>
-            <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
-            <a href="/" className="dn-item"><span>🏠</span> Accueil</a>\n          </div>
         </div>
-      </div>
+      )}
+
+      {/* Mobile nav links (expanded) */}
+      {isMobile && mobileMenuOpen && (
+        <div style={{
+          background: "#f9fafb", borderRadius: 12, border: "1px solid rgba(0,0,0,0.08)",
+          padding: "8px 0", marginBottom: 20,
+        }}>
+          <a href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>📊 Tableau de bord</a>
+          <a href="/availability" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>📅 Disponibilités</a>
+          <a href="/settings" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", fontSize: 14, fontWeight: 500, color: "#242424", textDecoration: "none" }}>⚙️ Paramètres</a>
+          <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "4px 0" }} />
+          <div style={{ padding: "8px 16px" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Theme</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(Object.entries(themes) as [ThemeName, typeof themes.default][]).map(([key, t]) => (
+                <button key={key} onClick={() => setTheme(key)} title={t.name}
+                  style={{ width: 24, height: 24, borderRadius: "50%", background: t.accent, border: theme === key ? "2px solid white" : "2px solid transparent", outline: theme === key ? `2px solid ${t.accent}` : "none", cursor: "pointer", padding: 0, boxShadow: theme === key ? `0 0 0 2px ${t.accent}` : "none" }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop nav */}
+      {!isMobile && (
+        <div className="dn-nav">
+          <div>
+            <a href="/" className="dn-brand">Planxo</a>
+            <p style={styles.muted}>{userName ? `${userName} — Tableau de bord` : "Tableau de bord"}</p>
+          </div>
+          <div className="dn-menu">
+            <button className="dn-menu-btn" onClick={() => { const el = document.querySelector('.dn-dropdown'); if(el) el.classList.toggle('dn-open'); }}>
+              Menu <span style={{fontSize:10,color:"#898989"}}>▼</span>
+            </button>
+            <div className="dn-dropdown" onClick={(e) => { (e.target as HTMLElement).closest('.dn-dropdown')?.classList.remove('dn-open'); }}>
+              <a href="/dashboard" className="dn-item"><span>📊</span> Tableau de bord</a>
+              <a href="/settings" className="dn-item"><span>⚙️</span> Paramètres</a>
+              <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
+              <a href="/appel-15min" className="dn-item"><span>📅</span> Appel 15 min</a>
+              <a href="/consultation-30min" className="dn-item"><span>📅</span> Consultation 30 min</a>
+              <a href="/reunion-1h" className="dn-item"><span>📅</span> Réunion 1h</a>
+              <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
+              <a href="/api/v2/me" className="dn-item"><span>🔑</span> API</a>
+              <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
+              <div style={{padding:"8px 14px"}}>
+                <div style={{fontSize:11,fontWeight:600,color:"#898989",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Theme</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {(Object.entries(themes) as [ThemeName, typeof themes.default][]).map(([key, t]) => (
+                    <button key={key} onClick={() => setTheme(key)} title={t.name}
+                      style={{width:24,height:24,borderRadius:"50%",background:t.accent,border:theme===key?"2px solid white":"2px solid transparent",outline:theme===key?`2px solid ${t.accent}`:"none",cursor:"pointer",padding:0,boxShadow:theme===key?`0 0 0 2px ${t.accent}`:"none"}}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
+              <a href="/" className="dn-item"><span>🏠</span> Accueil</a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile username label */}
+      {isMobile && (
+        <p style={{ ...styles.muted, marginBottom: 16 }}>{userName ? `${userName} — Tableau de bord` : "Tableau de bord"}</p>
+      )}
 
       {/* Stats */}
-      <div style={styles.statsRow}>
+      <div style={{ ...styles.statsRow, gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(200px, 1fr))" }}>
         <div style={styles.statCard}>
           <div style={styles.statNumber}>{eventTypes.length}</div>
           <div style={styles.statLabel}>Types de rendez-vous</div>
@@ -279,7 +339,7 @@ export default function DashboardPage() {
               }}
               required
             />
-            <div style={styles.formRow}>
+            <div style={{ ...styles.formRow, flexDirection: isMobile ? "column" : "row" }}>
               <select style={styles.select} value={newET.length} onChange={(e) => setNewET({ ...newET, length: Number(e.target.value) })}>
                 <option value={15}>15 minutes</option>
                 <option value={30}>30 minutes</option>
@@ -304,9 +364,9 @@ export default function DashboardPage() {
           </form>
         )}
 
-        <div style={styles.eventGrid}>
+        <div style={{ ...styles.eventGrid, width: isMobile ? "100%" : undefined }}>
           {eventTypes.map((et) => (
-            <div key={et.id} style={styles.eventCard}>
+            <div key={et.id} style={{ ...styles.eventCard, flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? 12 : undefined }}>
               <div style={{ flex: 1 }}>
                 <h3 style={styles.h3}>{et.title}</h3>
                 <p style={styles.muted}>{et.length} min · {et.location === "google-meet" ? "Google Meet" : et.location === "phone" ? "Téléphone" : et.location === "zoom" ? "Zoom" : "En personne"}</p>
@@ -333,7 +393,7 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <a href={`/event-types/${et.id}`}
                   style={{ ...styles.copyBtn, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
                   title="Modifier les paramètres avancés"
@@ -359,8 +419,14 @@ export default function DashboardPage() {
       <div style={styles.section}>
         <h2 style={styles.h2}>Rendez-vous</h2>
 
-        {/* Filter tabs */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        {/* Filter tabs — scrollable on mobile */}
+        <div style={{
+          display: "flex", gap: 8, marginBottom: 16,
+          flexWrap: isMobile ? "nowrap" : "wrap",
+          overflowX: isMobile ? "auto" : "visible",
+          paddingBottom: isMobile ? 4 : 0,
+          WebkitOverflowScrolling: "touch",
+        }}>
           {FILTERS.map((f) => (
             <button
               key={f.value}
@@ -373,6 +439,7 @@ export default function DashboardPage() {
                 cursor: "pointer",
                 fontFamily: "'Inter', sans-serif",
                 transition: "all 0.15s",
+                flexShrink: 0,
                 border: activeFilter === f.value
                   ? "1.5px solid #8a7a60"
                   : "1.5px solid rgba(0,0,0,0.08)",
@@ -392,7 +459,13 @@ export default function DashboardPage() {
             <p style={styles.muted}>Aucun rendez-vous.</p>
           ) : (
             bookings.map((b) => (
-              <div key={b.id} style={styles.bookingCard}>
+              <div key={b.id} style={{
+                ...styles.bookingCard,
+                flexDirection: isMobile ? "column" : "row",
+                alignItems: isMobile ? "flex-start" : "center",
+                gap: isMobile ? 10 : 16,
+                width: isMobile ? "100%" : undefined,
+              }}>
                 <div style={styles.bookingLeft}>
                   <div style={styles.avatar}>{b.guestName[0] || "?"}</div>
                   <div>
@@ -400,7 +473,7 @@ export default function DashboardPage() {
                     <div style={styles.muted}>{b.guestEmail}</div>
                   </div>
                 </div>
-                <div style={styles.bookingRight}>
+                <div style={{ ...styles.bookingRight, textAlign: isMobile ? "left" : "right" }}>
                   <div style={styles.bookingType}>{b.eventType.title}</div>
                   <div style={styles.bookingTime}>
                     {new Date(b.startTime).toLocaleDateString("fr-CA", { weekday: "short", day: "numeric", month: "short" })}
@@ -408,21 +481,23 @@ export default function DashboardPage() {
                     {new Date(b.startTime).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" })}
                   </div>
                 </div>
-                <span style={{
-                  ...styles.badge,
-                  background: b.status === "confirmed" ? "#ecfdf5" : b.status === "cancelled" ? "#fef2f2" : "#fefce8",
-                  color: b.status === "confirmed" ? "#059669" : b.status === "cancelled" ? "#dc2626" : "#b45309",
-                }}>
-                  {b.status === "confirmed" ? "Confirmé" : b.status === "cancelled" ? "Annulé" : b.status}
-                </span>
-                {activeFilter === "upcoming" && (
-                  <button
-                    onClick={() => handleCancelBooking(b.id)}
-                    style={{ fontSize: 12, color: "#8a7a60", background: "transparent", border: "1px solid rgba(138,122,96,0.2)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "'Inter',sans-serif" }}
-                  >
-                    Annuler
-                  </button>
-                )}
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <span style={{
+                    ...styles.badge,
+                    background: b.status === "confirmed" ? "#ecfdf5" : b.status === "cancelled" ? "#fef2f2" : "#fefce8",
+                    color: b.status === "confirmed" ? "#059669" : b.status === "cancelled" ? "#dc2626" : "#b45309",
+                  }}>
+                    {b.status === "confirmed" ? "Confirmé" : b.status === "cancelled" ? "Annulé" : b.status}
+                  </span>
+                  {activeFilter === "upcoming" && (
+                    <button
+                      onClick={() => handleCancelBooking(b.id)}
+                      style={{ fontSize: 12, color: "#8a7a60", background: "transparent", border: "1px solid rgba(138,122,96,0.2)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "'Inter',sans-serif" }}
+                    >
+                      Annuler
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           )}
@@ -436,8 +511,8 @@ export default function DashboardPage() {
           display: "flex", justifyContent: "flex-end",
         }} onClick={() => setShareTarget(null)}>
           <div style={{
-            width: "100%", maxWidth: 440, background: "#fff", height: "100%",
-            padding: "32px 28px", overflow: "auto", fontFamily: "'Inter',sans-serif",
+            width: "100%", maxWidth: isMobile ? "100%" : 440, background: "#fff", height: "100%",
+            padding: isMobile ? "24px 16px" : "32px 28px", overflow: "auto", fontFamily: "'Inter',sans-serif",
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
               <h2 style={{ fontFamily: "'Cal Sans',sans-serif", fontSize: 22, fontWeight: 700, margin: 0 }}>Partager</h2>

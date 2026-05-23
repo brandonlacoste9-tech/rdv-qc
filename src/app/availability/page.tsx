@@ -77,6 +77,14 @@ export default function AvailabilityPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // --- Task 13: Date overrides ---
   const [overrides, setOverrides] = useState<Array<{ id: number; date: string; reason?: string }>>([]);
@@ -222,13 +230,13 @@ export default function AvailabilityPage() {
           <input
             value={scheduleName}
             onChange={e => setScheduleName(e.target.value)}
-            style={s.input}
+            style={{ ...s.input, width: isMobile ? "100%" : 260 }}
           />
         </div>
 
-        <div style={s.layout}>
+        <div style={{ ...s.layout, flexDirection: isMobile ? "column" : "row" }}>
           {/* Calendar */}
-          <div style={s.calCard}>
+          <div style={{ ...s.calCard, minWidth: isMobile ? "unset" : 280, width: isMobile ? "100%" : undefined }}>
             {/* Month nav */}
             <div style={s.monthNav}>
               <span style={s.monthLabel}>{MONTHS_FR[month]} {year}</span>
@@ -284,10 +292,10 @@ export default function AvailabilityPage() {
 
           {/* Time slots panel */}
           {selectedDate && (
-            <div style={s.slotsPanel}>
+            <div style={{ ...s.slotsPanel, minWidth: isMobile ? "unset" : 260, width: isMobile ? "100%" : undefined }}>
               <div style={s.slotsLabel}>{selectedDateLabel}</div>
               <div style={s.slotsHint}>Cliquez sur un créneau pour l'activer/désactiver</div>
-              <div style={s.slotsGrid}>
+              <div style={{ ...s.slotsGrid, gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)" }}>
                 {ALL_SLOTS.map(slot => {
                   const active = selectedDaySlots.has(slot);
                   return (
@@ -300,6 +308,7 @@ export default function AvailabilityPage() {
                         color: active ? "#c8a96e" : "#8a7a60",
                         border: active ? "1px solid rgba(200,169,110,0.5)" : "1px solid rgba(255,255,255,0.06)",
                         fontWeight: active ? 600 : 400,
+                        fontSize: isMobile ? 11 : 12,
                       }}
                     >
                       {slot}
@@ -334,16 +343,17 @@ export default function AvailabilityPage() {
                   ...s.summaryRow,
                   opacity: isActive ? 1 : 0.4,
                   background: selectedDow === dow ? "rgba(200,169,110,0.08)" : "transparent",
+                  padding: isMobile ? "6px 8px" : "8px 10px",
                 }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: isActive ? "#e8d5b0" : "#6a5a40", minWidth: 90 }}>
+                  <span style={{ fontSize: isMobile ? 11 : 13, fontWeight: 500, color: isActive ? "#e8d5b0" : "#6a5a40", minWidth: isMobile ? 60 : 90 }}>
                     {dayName.slice(0, 3).toUpperCase()}
                   </span>
-                  <span style={{ fontSize: 12, color: "#8a7a60", flex: 1 }}>
+                  <span style={{ fontSize: isMobile ? 11 : 12, color: "#8a7a60", flex: 1 }}>
                     {isActive
                       ? ivs.map(iv => `${iv.startTime}–${iv.endTime}`).join(", ")
                       : "Indisponible"}
                   </span>
-                  <span style={{ fontSize: 11, color: "#5a4a30" }}>
+                  <span style={{ fontSize: isMobile ? 10 : 11, color: "#5a4a30" }}>
                     {isActive ? `${slots.size} créneaux` : ""}
                   </span>
                 </div>
@@ -369,7 +379,7 @@ export default function AvailabilityPage() {
                 onChange={e => setNewBlockDate(e.target.value)}
                 style={{
                   ...s.input,
-                  width: 160,
+                  width: isMobile ? "100%" : 160,
                   colorScheme: "dark",
                 }}
               />
