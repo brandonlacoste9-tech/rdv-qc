@@ -79,7 +79,14 @@ export async function GET(request: NextRequest) {
         for (let m = startMin; m + slotLen <= endMin; m += interval) {
           const h = Math.floor(m / 60), min = m % 60;
           const slotTime = `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-          const slotStart = new Date(`${dayStr}T${slotTime}:00`);
+          // Construct slot in user's timezone, then convert to UTC
+          const localDate = new Date(`${dayStr}T${slotTime}:00`);
+          const tzOffsets: Record<string, number> = {
+            "America/Toronto": -4, "America/New_York": -4, "America/Vancouver": -7,
+            "America/Chicago": -5, "America/Denver": -6, "Europe/Paris": 2, "Europe/London": 1,
+          };
+          const tzOffsetHours = tzOffsets[timeZone] ?? 0;
+          const slotStart = new Date(localDate.getTime() - tzOffsetHours * 3600000);
           const slotEnd = new Date(slotStart.getTime() + slotLen * 60000);
           const bStart = new Date(slotStart.getTime() - bufB * 60000);
           const bEnd = new Date(slotEnd.getTime() + bufA * 60000);
