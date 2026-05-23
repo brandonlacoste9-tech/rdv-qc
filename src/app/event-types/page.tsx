@@ -24,11 +24,13 @@ function emptyForm() {
     bufferBefore: 0,
     bufferAfter: 0,
     maxPerDay: "",
+    scheduleId: "" as string | number,
   };
 }
 
 export default function EventTypesPage() {
   const [eventTypes, setEventTypes] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; editing: any | null }>({ open: false, editing: null });
   const [form, setForm] = useState(emptyForm());
@@ -41,7 +43,13 @@ export default function EventTypesPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    fetchAll();
+    // Fetch schedules for the picker
+    fetch("/api/v2/me")
+      .then(r => r.json())
+      .then(d => setSchedules(d.schedules || []));
+  }, []);
 
   const openNew = () => {
     setForm(emptyForm());
@@ -61,6 +69,7 @@ export default function EventTypesPage() {
       bufferBefore: et.bufferBefore ?? 0,
       bufferAfter: et.bufferAfter ?? 0,
       maxPerDay: et.maxPerDay?.toString() || "",
+      scheduleId: et.scheduleId ?? "",
     });
     setModal({ open: true, editing: et });
   };
@@ -85,6 +94,7 @@ export default function EventTypesPage() {
       bufferBefore: form.bufferBefore,
       bufferAfter: form.bufferAfter,
       maxPerDay: form.maxPerDay ? parseInt(form.maxPerDay) : null,
+      scheduleId: form.scheduleId !== "" ? Number(form.scheduleId) : null,
     };
 
     const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -216,6 +226,22 @@ export default function EventTypesPage() {
                       }} />
                     ))}
                   </div>
+                </label>
+
+                <div style={{borderTop:"1px solid rgba(0,0,0,0.06)",margin:"4px 0"}} />
+
+                {/* ── Horaire lié ── */}
+                <div style={{fontSize:13,fontWeight:600,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.5px"}}>Horaire</div>
+
+                <label style={s.label}>
+                  Horaire utilisé pour ce type de rendez-vous
+                  <select className="modal-input" value={form.scheduleId} onChange={e => set("scheduleId", e.target.value)}>
+                    <option value="">Horaire par défaut</option>
+                    {schedules.map((sc: any) => (
+                      <option key={sc.id} value={sc.id}>{sc.name || `Horaire #${sc.id}`}</option>
+                    ))}
+                  </select>
+                  <span style={{fontSize:11,color:"#898989"}}>Choisissez quel horaire définit les disponibilités pour ce type</span>
                 </label>
 
                 <div style={{borderTop:"1px solid rgba(0,0,0,0.06)",margin:"4px 0"}} />

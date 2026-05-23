@@ -334,6 +334,12 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <a href={`/event-types/${et.id}`}
+                  style={{ ...styles.copyBtn, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+                  title="Modifier les paramètres avancés"
+                >
+                  ✏️ Modifier
+                </a>
                 <button style={copySuccess === et.slug ? styles.copiedBtn : styles.copyBtn}
                   onClick={() => copyLink(et.slug)}
                 >{copySuccess === et.slug ? "✓ Copié!" : "Copier"}</button>

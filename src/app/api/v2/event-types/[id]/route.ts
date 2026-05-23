@@ -73,6 +73,7 @@ export async function PATCH(
       afterEventBuffer: "afterEventBuffer",
       minimumBookingNotice: "minimumBookingNotice",
       requiresConfirmation: "requiresConfirmation",
+      scheduleId: "scheduleId",
     };
 
     for (const [frontendField, dbField] of Object.entries(fieldMap)) {

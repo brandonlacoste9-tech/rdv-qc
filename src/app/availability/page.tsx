@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const DAYS_SHORT = ["D", "L", "M", "M", "J", "V", "S"];
 const DAYS_FULL = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
@@ -77,6 +77,40 @@ export default function AvailabilityPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // --- Task 13: Date overrides ---
+  const [overrides, setOverrides] = useState<Array<{ id: number; date: string; reason?: string }>>([]);
+  const [newBlockDate, setNewBlockDate] = useState("");
+  const [newBlockReason, setNewBlockReason] = useState("");
+  const [overrideSaving, setOverrideSaving] = useState(false);
+
+  const loadOverrides = useCallback(() => {
+    fetch("/api/availability/overrides")
+      .then(r => r.json())
+      .then(d => setOverrides(d.data || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { loadOverrides(); }, [loadOverrides]);
+
+  const addOverride = async () => {
+    if (!newBlockDate) return;
+    setOverrideSaving(true);
+    await fetch("/api/availability/overrides", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: newBlockDate, reason: newBlockReason || null }),
+    });
+    setNewBlockDate("");
+    setNewBlockReason("");
+    setOverrideSaving(false);
+    loadOverrides();
+  };
+
+  const removeOverride = async (date: string) => {
+    await fetch(`/api/availability/overrides?date=${encodeURIComponent(date)}`, { method: "DELETE" });
+    loadOverrides();
+  };
 
   useEffect(() => {
     fetch("/api/v2/me").then(r => r.json()).then(user => {
@@ -316,6 +350,107 @@ export default function AvailabilityPage() {
               );
             })}
           </div>
+        </div>
+
+        {/* Dates bloquées */}
+        <div style={s.summaryCard}>
+          <div style={s.summaryTitle}>Dates bloquées</div>
+          <div style={{ fontSize: 12, color: "#6a5a40", marginBottom: 14 }}>
+            Bloquez des jours spécifiques où vous n'êtes pas disponible (congés, jours fériés, etc.)
+          </div>
+
+          {/* Add override row */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "flex-end" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={s.label}>Date</label>
+              <input
+                type="date"
+                value={newBlockDate}
+                onChange={e => setNewBlockDate(e.target.value)}
+                style={{
+                  ...s.input,
+                  width: 160,
+                  colorScheme: "dark",
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 140 }}>
+              <label style={s.label}>Raison (optionnel)</label>
+              <input
+                type="text"
+                value={newBlockReason}
+                onChange={e => setNewBlockReason(e.target.value)}
+                placeholder="ex: Congé, férié..."
+                style={{ ...s.input, width: "100%" }}
+              />
+            </div>
+            <button
+              onClick={addOverride}
+              disabled={!newBlockDate || overrideSaving}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 8,
+                border: "1px solid rgba(200,169,110,0.4)",
+                background: !newBlockDate || overrideSaving ? "rgba(255,255,255,0.04)" : "rgba(200,169,110,0.15)",
+                color: !newBlockDate || overrideSaving ? "#5a4a30" : "#c8a96e",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: !newBlockDate || overrideSaving ? "default" : "pointer",
+                fontFamily: "Inter, sans-serif",
+                whiteSpace: "nowrap",
+                height: 40,
+              }}
+            >
+              {overrideSaving ? "..." : "Bloquer ce jour"}
+            </button>
+          </div>
+
+          {/* Override chips */}
+          {overrides.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#4a3a20", fontStyle: "italic" }}>Aucune date bloquée</div>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {overrides.map(ov => {
+                const d = new Date(ov.date + "T12:00:00");
+                const label = `${d.getDate()} ${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
+                return (
+                  <div
+                    key={ov.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "5px 10px 5px 12px",
+                      borderRadius: 20,
+                      background: "rgba(200,80,60,0.12)",
+                      border: "1px solid rgba(200,80,60,0.3)",
+                      fontSize: 12,
+                      color: "#e8a090",
+                    }}
+                  >
+                    <span>🚫 {label}{ov.reason ? ` — ${ov.reason}` : ""}</span>
+                    <button
+                      onClick={() => removeOverride(ov.date)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#e8a090",
+                        cursor: "pointer",
+                        padding: "0 2px",
+                        fontSize: 14,
+                        lineHeight: 1,
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                      title="Supprimer"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Save button */}

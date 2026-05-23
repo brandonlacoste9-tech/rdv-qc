@@ -27,6 +27,10 @@ export async function GET(request: NextRequest) {
   const { data: eventType } = await supabase.from("EventType").select("*").eq("id", eventTypeId).single();
   if (!eventType) return apiError("Event type not found", 404);
 
+  // Minimum booking notice cutoff — slots starting before this are filtered out
+  const minNoticeMs = (eventType?.minimumBookingNotice ?? 120) * 60 * 1000;
+  const noticeCutoff = new Date(Date.now() + minNoticeMs);
+
   // Parse date range (default: next 7 days)
   const rangeStart = startTime ? new Date(startTime) : new Date();
   rangeStart.setHours(0, 0, 0, 0);
@@ -121,6 +125,10 @@ export async function GET(request: NextRequest) {
 
           if (!conflict) {
             const iso = slotStart.toISOString();
+
+            // Skip slots within minimumBookingNotice window from now
+            if (slotStart <= noticeCutoff) continue;
+
             const key = `${dayStr}|${iso}|${sched.userId}`;
 
             if (schedulingType === "collective") {
