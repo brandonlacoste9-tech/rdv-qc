@@ -31,7 +31,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", background: "#ffffff", color: "#242424" }}>
+    <div style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif", background: "#ffffff", color: "#242424", position: "relative", zIndex: 1 }}>
       {/* ── NAV ── */}
       <header style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -74,26 +74,84 @@ export default function HomePage() {
           <p style={{ fontSize: 13, color: "#898989", marginTop: 8 }}>{t.hero.noCard}</p>
         </div>
         {/* Calendar widget mockup */}
-        <div style={{ flex: "0 0 380px", display: "none" }} className="hero-widget">
-          <div style={{ background: "#f9fafb", borderRadius: 20, padding: 24, border: "1px solid rgba(0,0,0,0.06)", boxShadow: "0 8px 32px rgba(0,0,0,0.06)" }}>
-            <div style={{ textAlign: "center", marginBottom: 16 }}>
-              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#242424", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, marginBottom: 8 }}>P</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Planxo</div>
-              <div style={{ fontSize: 13, color: "#898989" }}>Consultation 30 min</div>
+        <div style={{ flex: "0 0 400px" }} className="hero-widget">
+          <div style={{ background: "#fff", borderRadius: 24, padding: 28, border: "1px solid rgba(0,0,0,0.08)", boxShadow: "0 4px 32px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04)" }}>
+            {/* Host header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, flexShrink: 0 }}>P</div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#242424" }}>Planxo</div>
+                <div style={{ fontSize: 13, color: "#898989" }}>Consultation 30 min</div>
+              </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, marginBottom: 12 }}>
-              {["L","M","M","J","V","S","D"].map((d, i) => (
-                <div key={i} style={{ fontSize: 11, color: "#898989", textAlign: "center" }}>{d}</div>
-              ))}
-              {Array.from({ length: 28 }, (_, i) => (
-                <div key={i} style={{ padding: "6px 0", borderRadius: 6, textAlign: "center", fontSize: 13, cursor: "pointer", background: i === 9 ? "#242424" : i === 10 || i === 12 ? "#f3f4f6" : "transparent", color: i === 9 ? "#fff" : i === 10 || i === 12 ? "#898989" : "#242424", fontWeight: i === 9 ? 600 : 400 }}>{i < 5 ? "" : i - 4}</div>
+            {/* Duration selector */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+              {["15m","30m","45m","1h"].map(d => (
+                <button key={d} style={{
+                  padding: "7px 14px", borderRadius: 9999, border: d === "30m" ? "2px solid #242424" : "1px solid rgba(0,0,0,0.1)",
+                  background: d === "30m" ? "#f9fafb" : "#fff", fontSize: 13, fontWeight: 500, color: "#242424",
+                  cursor: "pointer", fontFamily: "'Inter',sans-serif"
+                }}>{d}</button>
               ))}
             </div>
-            <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Jeudi 22 mai</div>
-              {["09:00", "09:30", "10:00", "10:30", "14:00", "14:30", "15:00"].map(t => (
-                <div key={t} style={{ display: "inline-block", padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.08)", margin: "0 6px 6px 0", fontSize: 13, cursor: "pointer", transition: "all .15s" }}>{t}</div>
-              ))}
+            {/* Location */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#898989" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+              <span style={{ fontSize: 13, color: "#898989" }}>Google Meet</span>
+            </div>
+            {/* Timezone */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#898989" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span style={{ fontSize: 13, color: "#898989" }}>America/Toronto</span>
+            </div>
+            <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 18 }}>
+              {/* Month nav */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#242424" }}>mai 2025</span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button style={{ width:28,height:28,borderRadius:7,border:"1px solid rgba(0,0,0,0.1)",background:"#fff",cursor:"pointer",fontSize:14,color:"#242424" }}>‹</button>
+                  <button style={{ width:28,height:28,borderRadius:7,border:"1px solid rgba(0,0,0,0.1)",background:"#fff",cursor:"pointer",fontSize:14,color:"#242424" }}>›</button>
+                </div>
+              </div>
+              {/* Calendar grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 16 }}>
+                {["D","L","M","M","J","V","S"].map(d => (
+                  <div key={d} style={{ fontSize: 11, color: "#898989", textAlign: "center", paddingBottom: 4, fontWeight: 500 }}>{d}</div>
+                ))}
+                {Array.from({length:35}, (_,i) => {
+                  const day = i - 3;
+                  const active = day === 23 || day === 25 || day === 28 || day === 30;
+                  const isSelected = day === 25;
+                  if (day < 1 || day > 31) return <div key={i} />;
+                  return (
+                    <button key={i} style={{
+                      padding: "6px 0", borderRadius: 8, border: "none", fontSize: 13, cursor: "pointer",
+                      background: isSelected ? "#242424" : active ? "#f0fdf4" : "#fff",
+                      color: isSelected ? "#fff" : day < 23 ? "#d1d5db" : "#242424",
+                      fontWeight: isSelected ? 600 : 400, fontFamily: "'Inter',sans-serif",
+                      position: "relative"
+                    }}>
+                      {day}
+                      {active && !isSelected && (
+                        <span style={{ position:"absolute",bottom:2,left:"50%",marginLeft:-3,width:6,height:6,borderRadius:"50%",background:"#10b981" }} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Time slots */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#898989", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>dimanche 25 mai</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {["08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30","14:00","14:30","15:00","15:30","16:00","16:30"].map(t => (
+                    <button key={t} style={{
+                      padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.08)",
+                      background: "#fff", fontSize: 13, fontWeight: 500, color: "#242424",
+                      cursor: "pointer", fontFamily: "'Inter',sans-serif", transition: "all .15s"
+                    }}>{t}</button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -266,7 +324,8 @@ export default function HomePage() {
         .nav-link:hover { color: #242424 !important; }
         .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
         .footer-link:hover { color: #242424 !important; }
-        @media (max-width: 768px) {
+        .hero-widget button:hover { background: #f3f4f6 !important; }
+        @media (max-width: 900px) {
           .hero-widget { display: none !important; }
         }
       `}} />
