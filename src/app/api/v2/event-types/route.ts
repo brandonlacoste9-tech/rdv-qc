@@ -39,14 +39,23 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET — List event types
-export async function GET() {
-  const { data: user } = await supabase.from("User").select("id").eq("email", "info@planxo.ca").single();
-  if (!user) return apiError("User not found", 404);
+// GET — List event types (optionally filter by userId)
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get("userId");
 
-  const { data, error } = await supabase.from("EventType").select("*").eq("userId", user.id).order("createdAt", { ascending: false });
+  let query = supabase.from("EventType").select("*").order("createdAt", { ascending: false });
+
+  if (userId) {
+    query = query.eq("userId", userId);
+  } else {
+    const { data: user } = await supabase.from("users").select("id").eq("email", "info@planxo.ca").single();
+    if (!user) return apiError("User not found", 404);
+    query = query.eq("userId", user.id);
+  }
+
+  const { data, error } = await query;
   if (error) return apiError(error.message, 500);
-
   return NextResponse.json({ status: "success", data: data || [] });
 }
 

@@ -1,14 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const { data: user } = await supabase
-    .from("User")
-    .select("*")
-    .eq("email", "info@planxo.ca")
-    .single();
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const username = searchParams.get("username");
+
+  let userQuery = supabase.from("users").select("*");
+
+  if (username) {
+    userQuery = userQuery.eq("username", username);
+  } else {
+    userQuery = userQuery.eq("email", "info@planxo.ca");
+  }
+
+  const { data: user } = await userQuery.single();
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });

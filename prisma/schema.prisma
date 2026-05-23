@@ -40,6 +40,7 @@ model EventType {
   maxPerDay    Int?                 // null = unlimited, N = cap per calendar day
   price        Int      @default(0) // cents — 0 = free, 4900 = $49
   currency     String   @default("cad")
+  isPrivate    Boolean  @default(false) // hidden from user hub, direct link only
   meetingUrl   String?             // auto-generated on booking, e.g. Google Meet link
   createdAt    DateTime @default(now())
   updatedAt   DateTime @updatedAt
