@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -136,6 +136,18 @@ export default function LoginPage() {
       </div>
       <style dangerouslySetInnerHTML={{ __html: `.google-btn:hover { background: #f9fafb; border-color: rgba(0,0,0,0.2); }` }} />
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f9fafb"}}>
+        <p style={{fontSize:14,color:"#898989"}}>Chargement...</p>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
 
