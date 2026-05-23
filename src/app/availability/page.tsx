@@ -32,15 +32,21 @@ export default function AvailabilityPage() {
   const displayIntervals = intervals.length > 0 ? intervals : defaultIntervals;
 
   const toggleDay = (dayIndex: number) => {
-    setIntervals(prev => prev.map(d =>
-      d.dayOfWeek === dayIndex ? { ...d, isActive: !d.isActive } : d
-    ));
+    setIntervals(prev => {
+      const source = prev.length > 0 ? prev : defaultIntervals;
+      return source.map(d =>
+        d.dayOfWeek === dayIndex ? { ...d, isActive: !d.isActive } : d
+      );
+    });
   };
 
   const updateTime = (dayIndex: number, field: "startTime" | "endTime", value: string) => {
-    setIntervals(prev => prev.map(d =>
-      d.dayOfWeek === dayIndex ? { ...d, [field]: value } : d
-    ));
+    setIntervals(prev => {
+      const source = prev.length > 0 ? prev : defaultIntervals;
+      return source.map(d =>
+        d.dayOfWeek === dayIndex ? { ...d, [field]: value } : d
+      );
+    });
   };
 
   if (loading) return <div style={s.page}><div style={s.content}><p style={{color:"#898989"}}>Chargement...</p></div></div>;
