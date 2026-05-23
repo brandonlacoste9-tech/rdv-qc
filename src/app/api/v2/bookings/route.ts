@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
     const isPaid = eventType.price === 0;
     const bookingStatus = isPaid ? "accepted" : "pending";
     const bookingId = Math.floor(Math.random() * 90000000) + 10000000; // 8-digit integer fitting PostgreSQL int4
+    const bookingUid = crypto.randomUUID(); // text uid for cal.diy
     const now = new Date().toISOString();
 
     // cal.diy Booking: attendee info in responses jsonb, not guestName/guestEmail columns
@@ -158,6 +159,7 @@ export async function POST(request: NextRequest) {
 
     const { data: booking, error } = await supabase.from("Booking").insert({
       id: bookingId,
+      uid: bookingUid,
       eventTypeId,
       userId: assignedUserId,
       title: eventType.title || `RDV avec ${guestName}`,
