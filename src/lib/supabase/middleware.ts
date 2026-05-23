@@ -40,5 +40,21 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Onboarding check: if authenticated and trying to access a protected route,
+  // verify they've completed onboarding (skip if already on onboarding page)
+  if (user && isProtected && request.nextUrl.pathname !== "/onboarding") {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("completedOnboarding")
+      .eq("uuid", user.id)
+      .single();
+
+    if (!profile?.completedOnboarding) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboarding";
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }
