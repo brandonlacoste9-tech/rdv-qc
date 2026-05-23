@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -58,4 +59,19 @@ export async function GET(request: NextRequest) {
     eventTypes: eventTypes || [],
     schedules: expandedSchedules,
   });
+}
+
+export async function PATCH(req: Request) {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const body = await req.json();
+  const updates: Record<string, any> = {};
+  if (body.name !== undefined) updates.name = body.name;
+  if (body.username !== undefined) updates.username = body.username;
+  if (body.timeZone !== undefined) updates.timeZone = body.timeZone;
+  if (body.conferencing !== undefined) updates.conferencing = body.conferencing;
+  const { error } = await supabaseAuth.from('users').update(updates).eq('id', user.id);
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ success: true });
 }
