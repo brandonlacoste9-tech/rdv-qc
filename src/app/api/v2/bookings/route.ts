@@ -9,8 +9,8 @@ function calendarLinks(booking: any, eventType: any) {
   const end = new Date(booking.endTime);
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   const title = encodeURIComponent(eventType.title);
-  const desc = encodeURIComponent(booking.guestNotes || "");
-  const loc = encodeURIComponent(booking.meetingUrl || eventType.location || "");
+  const desc = encodeURIComponent((booking.responses?.notes) || "");
+  const loc = encodeURIComponent(booking.location || eventType.location || "");
 
   return {
     google: `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fmt(start)}/${fmt(end)}&details=${desc}&location=${loc}`,
@@ -20,17 +20,18 @@ function calendarLinks(booking: any, eventType: any) {
 }
 
 function formatBooking(b: any, et: any) {
+  const responses = b.responses || {};
   return {
     id: b.id,
-    uid: b.id, // seat UID
+    uid: b.id,
     start: b.startTime,
     end: b.endTime,
-    status: b.status === "confirmed" ? "accepted" : b.status,
-    attendees: [{ name: b.guestName, email: b.guestEmail, timeZone: "UTC", language: "fr" }],
+    status: b.status === "accepted" ? "accepted" : b.status,
+    attendees: [{ name: responses.name || "", email: responses.email || b.userPrimaryEmail || "", timeZone: responses.timeZone || "UTC", language: "fr" }],
     guests: [],
-    location: b.meetingUrl || et.location,
-    meetingUrl: b.meetingUrl,
-    metadata: {},
+    location: b.location || Array.isArray(et.locations) ? (et.locations?.[0]?.type || "") : "",
+    meetingUrl: b.location || "",
+    metadata: b.metadata || {},
     paid: b.paid,
     eventTypeId: b.eventTypeId,
     calendarLinks: calendarLinks(b, et),
@@ -125,9 +126,6 @@ export async function POST(request: NextRequest) {
       else if (locationType === "teams") meetingUrl = `https://teams.microsoft.com/l/meetup-join/${rand()}`;
     }
 
-    const bookingId = Date.now(); // integer id for cal.diy Booking table
-    const now = new Date().toISOString();
-
     // ── Round-robin / collective: determine assigned user ──
     let assignedUserId = userId;
     const schedulingType = eventType.schedulingType || "individual";
@@ -145,14 +143,34 @@ export async function POST(request: NextRequest) {
     }
 
     const isPaid = eventType.price === 0;
-    const bookingStatus = isPaid ? "confirmed" : "pending_payment";
+    const bookingStatus = isPaid ? "accepted" : "pending";
+    const bookingId = Date.now();
+    const now = new Date().toISOString();
+
+    // cal.diy Booking: attendee info in responses jsonb, not guestName/guestEmail columns
+    const responses = {
+      name: guestName,
+      email: guestEmail,
+      notes: guestNotes,
+      timeZone: guestTz,
+      location: locationType,
+    };
 
     const { data: booking, error } = await supabase.from("Booking").insert({
-      id: bookingId, eventTypeId, userId: assignedUserId,
-      guestName, guestEmail, guestNotes,
-      startTime: start.toISOString(), endTime: end.toISOString(),
-      status: bookingStatus, paid: isPaid,
-      meetingUrl, updatedAt: now,
+      id: bookingId,
+      eventTypeId,
+      userId: assignedUserId,
+      title: eventType.title || `RDV avec ${guestName}`,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      status: bookingStatus,
+      paid: isPaid,
+      location: meetingUrl || "",
+      userPrimaryEmail: guestEmail,
+      responses,
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
     }).select().single();
 
     if (error) return apiError(error.message, 500);
@@ -191,23 +209,26 @@ export async function GET(request: NextRequest) {
   let q = supabase.from("Booking").select("*, eventType:EventType(*)").order("startTime", { ascending: true });
   if (eventTypeId) q = q.eq("eventTypeId", eventTypeId);
   if (status) q = q.eq("status", status);
-  if (attendeeEmail) q = q.eq("guestEmail", attendeeEmail);
+  if (attendeeEmail) q = q.eq("userPrimaryEmail", attendeeEmail);
 
   const { data: bookings, error } = await q;
   if (error) return apiError(error.message, 500);
 
-  const result = (bookings || []).map((b: any) => ({
-    id: b.id,
-    uid: b.id,
-    start: b.startTime,
-    end: b.endTime,
-    status: b.status === "confirmed" ? "accepted" : b.status,
-    attendees: [{ name: b.guestName, email: b.guestEmail }],
-    meetingUrl: b.meetingUrl,
-    eventTypeId: b.eventTypeId,
-    paid: b.paid,
-    createdAt: b.createdAt,
-  }));
+  const result = (bookings || []).map((b: any) => {
+    const resp = b.responses || {};
+    return {
+      id: b.id,
+      uid: b.id,
+      start: b.startTime,
+      end: b.endTime,
+      status: b.status === "accepted" ? "accepted" : b.status,
+      attendees: [{ name: resp.name || "", email: resp.email || b.userPrimaryEmail || "" }],
+      meetingUrl: b.location || "",
+      eventTypeId: b.eventTypeId,
+      paid: b.paid,
+      createdAt: b.createdAt,
+    };
+  });
 
   const response = NextResponse.json({ status: "success", data: result });
   response.headers.set("X-RateLimit-Remaining", "118");
