@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     const isPaid = eventType.price === 0;
     const bookingStatus = isPaid ? "accepted" : "pending";
-    const bookingId = Date.now();
+    const bookingId = Math.floor(Math.random() * 90000000) + 10000000; // 8-digit integer fitting PostgreSQL int4
     const now = new Date().toISOString();
 
     // cal.diy Booking: attendee info in responses jsonb, not guestName/guestEmail columns
