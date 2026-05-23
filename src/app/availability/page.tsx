@@ -90,8 +90,8 @@ export default function AvailabilityPage() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: "flex", minHeight: "100vh", fontFamily: "'Inter',system-ui,sans-serif",color:"#242424",background:"#fff",position:"relative",zIndex:1 },
-  sidebar: { width: 220, padding: "28px 20px", borderRight: "1px solid rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", flexShrink: 0 },
-  content: { flex: 1, padding: "40px 48px", maxWidth: 960 },
+  page: { display: "flex", minHeight: "100vh", fontFamily: "'Inter',system-ui,sans-serif",color:"#242424",background:"#fff",position:"relative",zIndex:1,flexWrap:"wrap" },
+  sidebar: { width: 220, padding: "20px 16px", borderRight: "1px solid rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", flexShrink: 0 },
+  content: { flex: 1, padding: "24px 16px 80px", maxWidth: 960 },
   select: { padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.1)", fontSize: 14, fontFamily: "'Inter',sans-serif", outline: "none", background: "#fff" },
 };

@@ -116,6 +116,11 @@ export default function DashboardPage() {
         .dn-open { display:block; }
         .dn-item { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:8px; border:none; background:none; width:100%; cursor:pointer; font-size:14px; font-weight:500; color:#242424; font-family:'Inter',sans-serif; text-decoration:none; text-align:left; transition:background 0.1s; }
         .dn-item:hover { background:#f3f4f6; }
+        @media (max-width: 768px) {
+          body { padding: 0 !important; }
+          .dn-nav { flex-direction: column; gap: 12px; align-items: flex-start; }
+          .dn-brand { font-size: 22px !important; }
+        }
       `}} />
       <div className="dn-nav">
         <div>
@@ -313,7 +318,7 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: 1280,
     width: "100%",
     margin: "0 auto",
-    padding: "40px 32px",
+    padding: "24px 16px 80px",
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     color: "#242424",
     background: "#fff",

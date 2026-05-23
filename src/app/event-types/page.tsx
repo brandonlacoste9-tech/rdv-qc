@@ -293,9 +293,9 @@ export default function EventTypesPage() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: "flex", minHeight: "100vh", fontFamily: "'Inter',system-ui,sans-serif",color:"#242424",background:"#fff",position:"relative",zIndex:1 },
-  sidebar: { width: 220, padding: "28px 20px", borderRight: "1px solid rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", flexShrink: 0 },
-  content: { flex: 1, padding: "40px 48px", maxWidth: 800 },
+  page: { display: "flex", minHeight: "100vh", fontFamily: "'Inter',system-ui,sans-serif",color:"#242424",background:"#fff",position:"relative",zIndex:1,flexWrap:"wrap" },
+  sidebar: { width: 220, padding: "20px 16px", borderRight: "1px solid rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", flexShrink: 0 },
+  content: { flex: 1, padding: "24px 16px 80px", maxWidth: 800 },
   primaryBtn: { padding:"10px 20px",borderRadius:9999,background:"#242424",color:"#fff",border:"none",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif" },
   secondaryBtn: { padding:"10px 20px",borderRadius:9999,background:"#fff",color:"#242424",border:"1px solid rgba(0,0,0,0.12)",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif" },
   chipBtn: { fontSize:12,color:"#242424",background:"#f9fafb",border:"1px solid rgba(0,0,0,0.08)",padding:"6px 12px",borderRadius:9999,cursor:"pointer",fontFamily:"'Inter',sans-serif" },
