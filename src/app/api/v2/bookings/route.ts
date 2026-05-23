@@ -23,7 +23,7 @@ function formatBooking(b: any, et: any) {
   const responses = b.responses || {};
   return {
     id: b.id,
-    uid: b.id,
+    uid: b.uid,
     start: b.startTime,
     end: b.endTime,
     status: b.status === "accepted" ? "accepted" : b.status,
@@ -118,12 +118,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Meeting URL
-    const locationType = body.location?.type || eventType.location;
+    const locationType = eventType.location; // already mapped from locations[0].type
     let meetingUrl = body.meetingUrl || null;
     if (!meetingUrl) {
-      if (locationType === "google-meet") meetingUrl = `https://meet.google.com/${rand()}`;
-      else if (locationType === "zoom") meetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 9999999999)}`;
-      else if (locationType === "teams") meetingUrl = `https://teams.microsoft.com/l/meetup-join/${rand()}`;
+      if (locationType?.includes("google")) meetingUrl = `https://meet.google.com/${rand()}`;
+      else if (locationType?.includes("zoom")) meetingUrl = `https://zoom.us/j/${Math.floor(Math.random() * 9999999999)}`;
+      else if (locationType?.includes("teams")) meetingUrl = `https://teams.microsoft.com/l/meetup-join/${rand()}`;
     }
 
     // ── Round-robin / collective: determine assigned user ──
@@ -220,7 +220,7 @@ export async function GET(request: NextRequest) {
     const resp = b.responses || {};
     return {
       id: b.id,
-      uid: b.id,
+      uid: b.uid,
       start: b.startTime,
       end: b.endTime,
       status: b.status === "accepted" ? "accepted" : b.status,
