@@ -21,6 +21,7 @@ model User {
   schedules  Schedule[]
   bookings   Booking[]
   webhooks   Webhook[]
+  consents   Law25Consent[]
 }
 
 model EventType {
@@ -111,6 +112,19 @@ model Webhook {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Law25Consent {
+  id                    String   @id @default(cuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consentVersion        String
+  dataCollectionAllowed Boolean  @default(false)
+  crossBorderAllowed    Boolean  @default(false)
+  ipAddress             String
+  timestamp             DateTime @default(now())
 
   @@index([userId])
 }
