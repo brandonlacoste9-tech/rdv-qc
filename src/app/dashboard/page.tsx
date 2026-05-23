@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTheme, themes, type ThemeName } from "@/lib/theme";
 
 interface EventType {
@@ -24,10 +24,19 @@ interface Booking {
   eventType: { title: string; slug: string };
 }
 
+type FilterValue = "upcoming" | "past" | "cancelled";
+
+const FILTERS: { value: FilterValue; label: string }[] = [
+  { value: "upcoming", label: "À venir" },
+  { value: "past", label: "Passés" },
+  { value: "cancelled", label: "Annulés" },
+];
+
 export default function DashboardPage() {
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
   const [userName, setUserName] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [newET, setNewET] = useState({ title: "", slug: "", length: 30, location: "google-meet", description: "" });
@@ -35,6 +44,7 @@ export default function DashboardPage() {
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [editSlugValue, setEditSlugValue] = useState("");
   const [shareTarget, setShareTarget] = useState<EventType | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterValue>("upcoming");
   const { theme, colors, setTheme } = useTheme();
   const dark = theme !== "default";
   const tColors = dark ? {
@@ -44,6 +54,29 @@ export default function DashboardPage() {
     bg: "#fff", text: "#242424", textMuted: "#898989",
     cardBg: "#fff", border: "rgba(0,0,0,0.08)", accent: "#242424",
   };
+
+  const fetchBookings = useCallback(async (filter: FilterValue = activeFilter) => {
+    setBookingsLoading(true);
+    try {
+      const params = filter === "cancelled"
+        ? "status=cancelled"
+        : `timeFilter=${filter}`;
+      const d = await fetch(`/api/v2/bookings?${params}`).then((r) => r.json());
+      const normalized = (d.data || []).map((b: any) => ({
+        id: b.id,
+        guestName: b.attendees?.[0]?.name || "",
+        guestEmail: b.attendees?.[0]?.email || "",
+        startTime: b.start,
+        endTime: b.end,
+        status: b.status === "accepted" ? "confirmed" : b.status,
+        eventTypeId: b.eventTypeId,
+        eventType: { title: "", slug: "" },
+      }));
+      setBookings(normalized);
+    } finally {
+      setBookingsLoading(false);
+    }
+  }, [activeFilter]);
 
   useEffect(() => {
     fetch("/api/me")
@@ -57,24 +90,12 @@ export default function DashboardPage() {
       .then((user) => {
         setEventTypes(user.eventTypes || []);
       });
-    fetch("/api/v2/bookings")
-      .then((r) => r.json())
-      .then((d) => {
-        // Normalize Cal.com API format to internal format
-        const normalized = (d.data || []).map((b: any) => ({
-          id: b.id,
-          guestName: b.attendees?.[0]?.name || "",
-          guestEmail: b.attendees?.[0]?.email || "",
-          startTime: b.start,
-          endTime: b.end,
-          status: b.status === "accepted" ? "confirmed" : b.status,
-          eventTypeId: b.eventTypeId,
-          eventType: { title: "", slug: "" },
-        }));
-        setBookings(normalized);
-      })
-      .finally(() => setLoading(false));
+    fetchBookings("upcoming").finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchBookings(activeFilter);
+  }, [activeFilter]);
 
   // Enrich bookings with event type names once both datasets are loaded
   useEffect(() => {
@@ -88,6 +109,16 @@ export default function DashboardPage() {
       );
     }
   }, [eventTypes, bookings.length]);
+
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!confirm("Annuler ce rendez-vous ?")) return;
+    await fetch(`/api/v2/bookings/${bookingId}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "Annulé par l'hôte" }),
+    });
+    fetchBookings(activeFilter);
+  };
 
   async function createEventType(e: React.FormEvent) {
     e.preventDefault();
@@ -320,36 +351,74 @@ export default function DashboardPage() {
 
       {/* Upcoming Bookings */}
       <div style={styles.section}>
-        <h2 style={styles.h2}>Rendez-vous à venir</h2>
-        <div style={styles.bookingList}>
-          {bookings.filter((b) => b.status !== "cancelled").map((b) => (
-            <div key={b.id} style={styles.bookingCard}>
-              <div style={styles.bookingLeft}>
-                <div style={styles.avatar}>{b.guestName[0]}</div>
-                <div>
-                  <div style={styles.guestName}>{b.guestName}</div>
-                  <div style={styles.muted}>{b.guestEmail}</div>
-                </div>
-              </div>
-              <div style={styles.bookingRight}>
-                <div style={styles.bookingType}>{b.eventType.title}</div>
-                <div style={styles.bookingTime}>
-                  {new Date(b.startTime).toLocaleDateString("fr-CA", { weekday: "short", day: "numeric", month: "short" })}
-                  {" · "}
-                  {new Date(b.startTime).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" })}
-                </div>
-              </div>
-              <span style={{
-                ...styles.badge,
-                background: b.status === "confirmed" ? "#ecfdf5" : "#fef2f2",
-                color: b.status === "confirmed" ? "#059669" : "#dc2626",
-              }}>
-                {b.status === "confirmed" ? "Confirmé" : b.status}
-              </span>
-            </div>
+        <h2 style={styles.h2}>Rendez-vous</h2>
+
+        {/* Filter tabs */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setActiveFilter(f.value)}
+              style={{
+                padding: "7px 18px",
+                borderRadius: 20,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'Inter', sans-serif",
+                transition: "all 0.15s",
+                border: activeFilter === f.value
+                  ? "1.5px solid #8a7a60"
+                  : "1.5px solid rgba(0,0,0,0.08)",
+                background: activeFilter === f.value ? "rgba(138,122,96,0.08)" : "#f9fafb",
+                color: activeFilter === f.value ? "#8a7a60" : "#898989",
+              }}
+            >
+              {f.label}
+            </button>
           ))}
-          {bookings.filter((b) => b.status !== "cancelled").length === 0 && (
-            <p style={styles.muted}>Aucun rendez-vous à venir.</p>
+        </div>
+
+        <div style={styles.bookingList}>
+          {bookingsLoading ? (
+            <p style={styles.muted}>Chargement...</p>
+          ) : bookings.length === 0 ? (
+            <p style={styles.muted}>Aucun rendez-vous.</p>
+          ) : (
+            bookings.map((b) => (
+              <div key={b.id} style={styles.bookingCard}>
+                <div style={styles.bookingLeft}>
+                  <div style={styles.avatar}>{b.guestName[0] || "?"}</div>
+                  <div>
+                    <div style={styles.guestName}>{b.guestName}</div>
+                    <div style={styles.muted}>{b.guestEmail}</div>
+                  </div>
+                </div>
+                <div style={styles.bookingRight}>
+                  <div style={styles.bookingType}>{b.eventType.title}</div>
+                  <div style={styles.bookingTime}>
+                    {new Date(b.startTime).toLocaleDateString("fr-CA", { weekday: "short", day: "numeric", month: "short" })}
+                    {" · "}
+                    {new Date(b.startTime).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                </div>
+                <span style={{
+                  ...styles.badge,
+                  background: b.status === "confirmed" ? "#ecfdf5" : b.status === "cancelled" ? "#fef2f2" : "#fefce8",
+                  color: b.status === "confirmed" ? "#059669" : b.status === "cancelled" ? "#dc2626" : "#b45309",
+                }}>
+                  {b.status === "confirmed" ? "Confirmé" : b.status === "cancelled" ? "Annulé" : b.status}
+                </span>
+                {activeFilter === "upcoming" && (
+                  <button
+                    onClick={() => handleCancelBooking(b.id)}
+                    style={{ fontSize: 12, color: "#8a7a60", background: "transparent", border: "1px solid rgba(138,122,96,0.2)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "'Inter',sans-serif" }}
+                  >
+                    Annuler
+                  </button>
+                )}
+              </div>
+            ))
           )}
         </div>
       </div>

@@ -248,12 +248,22 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const eventTypeId = searchParams.get("eventTypeId");
   const status = searchParams.get("status");
+  const timeFilter = searchParams.get("timeFilter"); // "upcoming" | "past"
   const attendeeEmail = searchParams.get("attendeeEmail");
   const uid = searchParams.get("uid");
 
   let q = supabase.from("Booking").select("*, eventType:EventType(*)").order("startTime", { ascending: true });
   if (eventTypeId) q = q.eq("eventTypeId", eventTypeId);
-  if (status) q = q.eq("status", status);
+  // timeFilter takes precedence: upcoming/past filters imply non-cancelled status unless status=cancelled
+  if (timeFilter === "upcoming") {
+    q = q.gte("startTime", new Date().toISOString()).neq("status", "cancelled");
+  } else if (timeFilter === "past") {
+    q = q.lt("startTime", new Date().toISOString()).neq("status", "cancelled");
+  } else if (status === "cancelled") {
+    q = q.eq("status", "cancelled");
+  } else if (status) {
+    q = q.eq("status", status);
+  }
   if (attendeeEmail) q = q.eq("userPrimaryEmail", attendeeEmail);
   if (uid) q = q.eq("uid", uid);
 

@@ -46,12 +46,31 @@ export async function GET(request: NextRequest) {
     teamMemberIds = [eventType.userId];
   }
 
-  // Get schedules for all team members (userId-based, no isDefault filter)
-  const { data: schedules } = await supabase.from("Schedule").select("id,userId").in("userId", teamMemberIds);
+  // --- TASK 14C: Use event type's scheduleId if set ---
+  const scheduleId: number | null = eventType.scheduleId || null;
+
+  // Get schedules for all team members
+  let schedQuery = supabase.from("Schedule").select("id,userId").in("userId", teamMemberIds);
+  // If a specific schedule is linked to this event type, restrict to it
+  if (scheduleId) {
+    schedQuery = supabase.from("Schedule").select("id,userId").eq("id", scheduleId).in("userId", teamMemberIds);
+  }
+  const { data: schedules } = await schedQuery;
   if (!schedules?.length) return NextResponse.json({ status: "success", data: {} });
 
   const scheduleIds = schedules.map((s: any) => s.id);
   const { data: allIntervals } = await supabase.from("Availability").select("*").in("scheduleId", scheduleIds);
+
+  // --- TASK 13D: Fetch date overrides (blocked dates) for the host ---
+  const hostUserId = eventType.userId;
+  const { data: overrides } = await supabase
+    .from("availability_overrides")
+    .select("date")
+    .eq("user_id", hostUserId);
+  const blockedDates = new Set((overrides || []).map((o: any) => {
+    // date may come as 'YYYY-MM-DD' or with time component
+    return typeof o.date === "string" ? o.date.slice(0, 10) : o.date;
+  }));
 
   // Get all local bookings in range for ALL team members
   const { data: allBookings } = await supabase.from("Booking").select("startTime,endTime,userId").eq("eventTypeId", eventTypeId).neq("status", "cancelled").gte("startTime", rangeStart.toISOString()).lte("startTime", rangeEnd.toISOString());
@@ -63,6 +82,12 @@ export async function GET(request: NextRequest) {
   while (cursor < rangeEnd) {
     const dayStr = cursor.toISOString().split("T")[0];
     const dayOfWeek = cursor.getDay();
+
+    // --- TASK 13D: Skip blocked dates ---
+    if (blockedDates.has(dayStr)) {
+      cursor.setDate(cursor.getDate() + 1);
+      continue;
+    }
 
     for (const sched of schedules) {
       const memberIntervals = (allIntervals || []).filter((i: any) => i.scheduleId === sched.id && Array.isArray(i.days) && i.days.includes(dayOfWeek));
