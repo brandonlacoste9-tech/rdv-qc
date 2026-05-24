@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function SuccessPage() {
+function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -69,5 +69,20 @@ export default function SuccessPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ maxWidth: 600, margin: '80px auto', textAlign: 'center', padding: 24 }}>
+        <div style={{ fontSize: 64, marginBottom: 24 }}>⏳</div>
+        <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8 }}>
+          Loading...
+        </h1>
+      </div>
+    }>
+      <SuccessContent />
+    </Suspense>
   );
 }
