@@ -58,13 +58,6 @@ export default function DashboardPage() {
   }, []);
 
   const tColors = colors;
-  const tColors = colors;
-  const tColors = colors;
-  const tColors = colors;
-  const tColors = colors;
-  const tColors = colors;
-  const tColors = colors;
-  const tColors = colors;
 
   const fetchBookings = useCallback(async (filter: FilterValue = activeFilter) => {
     setBookingsLoading(true);
