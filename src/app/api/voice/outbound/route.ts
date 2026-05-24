@@ -7,7 +7,7 @@ const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER!;
 // Trigger an outbound call (for reminders, no-shows, etc.)
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { to, userId, purpose, bookingId, professionalName } = body;
+  const { to, userId, purpose, bookingId, professionalName, customMessage, workflowExecutionId, eventTypeId } = body;
 
   if (!to || !purpose) {
     return NextResponse.json(
@@ -17,13 +17,21 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Build the TwiML URL with all parameters
+    let twimlUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/voice/twiml?purpose=${purpose}&userId=${userId}&professionalName=${encodeURIComponent(professionalName || '')}&bookingId=${bookingId || ''}&eventTypeId=${eventTypeId || ''}`;
+    
+    // Add custom message if provided (for workflow calls)
+    if (customMessage) {
+      twimlUrl += `&customMessage=${encodeURIComponent(customMessage)}`;
+    }
+
     // Create call via Twilio API
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Calls.json`;
     
     const formData = new URLSearchParams({
       To: to,
       From: TWILIO_PHONE_NUMBER,
-      Url: `${process.env.NEXT_PUBLIC_APP_URL}/api/voice/twiml?purpose=${purpose}&userId=${userId}&professionalName=${encodeURIComponent(professionalName || '')}&bookingId=${bookingId || ''}`,
+      Url: twimlUrl,
       StatusCallback: `${process.env.NEXT_PUBLIC_APP_URL}/api/voice/status`,
       StatusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'].join(' '),
       StatusCallbackMethod: 'POST',
@@ -58,6 +66,7 @@ export async function POST(req: NextRequest) {
       callSid: callData.sid,
       userId,
       bookingId,
+      workflowExecutionId: workflowExecutionId || null,
       purpose,
       to,
       from: TWILIO_PHONE_NUMBER,
