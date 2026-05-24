@@ -64,6 +64,8 @@ function getEmailTemplate(template: string, data: any) {
       return getBookingRescheduledEmail(data, appUrl);
     case 'booking-reminder':
       return getBookingReminderEmail(data, appUrl);
+    case 'payment-confirmed':
+      return getPaymentConfirmedEmail(data, appUrl);
     default:
       return getGenericEmail(data);
   }
@@ -298,6 +300,57 @@ function getBookingReminderEmail(data: any, appUrl: string) {
 </body>
 </html>`,
     text: `Rappel de rendez-vous\n\nBonjour ${attendeeName},\n\nVotre rendez-vous ${eventTypeName} est demain :\n${eventDate} à ${eventTime}\nAvec: ${professionalName}\n\nPour modifier: ${manageUrl}`
+  };
+}
+
+function getPaymentConfirmedEmail(data: any, appUrl: string) {
+  const { attendeeName, eventTypeName, eventDate, eventTime, amount, paymentMethod } = data;
+
+  return {
+    subject: `Paiement confirmé - ${eventTypeName}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #2d8f47; color: white; padding: 20px; text-align: center; }
+    .content { background: #f0f9f4; padding: 30px; margin: 20px 0; border: 2px solid #2d8f47; }
+    .amount { font-size: 24px; font-weight: bold; color: #2d8f47; }
+    .footer { text-align: center; color: #666; font-size: 12px; margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>✓ Paiement confirmé</h1>
+    </div>
+    
+    <div dir="ltr" lang="fr">
+      <p>Bonjour <strong>${attendeeName}</strong>,</p>
+      <p>Nous avons bien reçu votre paiement. Votre rendez-vous est maintenant confirmé.</p>
+      
+      <div class="content">
+        <p class="amount">${amount} $ CAD</p>
+        <p>💳 Méthode : ${paymentMethod}</p>
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #ddd;" />
+        <p>📅 <strong>${eventTypeName}</strong><br/>
+        ⏰ <strong>${eventDate} à ${eventTime}</strong></p>
+      </div>
+
+      <p>Un reçu vous sera envoyé sous peu.</p>
+    </div>
+
+    <div class="footer">
+      <p>Planxo - Gestion de rendez-vous simplifiée</p>
+      <p style="font-size: 10px; color: #999;">TPS/TVQ incluses - Reçu officiel disponible sur demande</p>
+    </div>
+  </div>
+</body>
+</html>`,
+    text: `Paiement confirmé - Planxo\n\nBonjour ${attendeeName},\n\nNous avons bien reçu votre paiement de ${amount} $ via ${paymentMethod}.\n\nVotre rendez-vous ${eventTypeName} est confirmé pour :\n${eventDate} à ${eventTime}\n\nMerci de votre confiance!`
   };
 }
 
