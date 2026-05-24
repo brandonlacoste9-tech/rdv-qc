@@ -46,17 +46,19 @@ export async function POST(req: NextRequest) {
     for (const workflow of workflows || []) {
       try {
         // Get user info separately
-        const { data: userData } = await supabase
+        const { data: userData, error: userError } = await supabase
           .from('users')
-          .select('id, email, raw_user_meta_data')
+          .select('id, email, name')
           .eq('id', workflow.user_id)
           .single();
 
-        if (!userData) continue;
+        if (!userData) {
+          console.error('User not found for workflow:', workflow.user_id, userError);
+          continue;
+        }
 
-        // Get professional name from user metadata
-        const userMeta = userData.raw_user_meta_data || {};
-        const professionalName = userMeta.name || userMeta.full_name || 'Planxo';
+        // Get professional name from user
+        const professionalName = userData.name || 'Planxo';
 
         // Find bookings that match this workflow's criteria
         const scheduledCount = await scheduleWorkflowExecutions(
@@ -255,12 +257,11 @@ async function executePendingCalls(): Promise<number> {
       // Get user info for professional name
       const { data: userData } = await supabase
         .from('users')
-        .select('raw_user_meta_data')
+        .select('name')
         .eq('id', workflow.user_id)
         .single();
 
-      const userMeta = userData?.raw_user_meta_data || {};
-      const professionalName = userMeta.name || userMeta.full_name || 'Planxo';
+      const professionalName = userData?.name || 'Planxo';
 
       // Get event type info
       const { data: eventType } = await supabase
