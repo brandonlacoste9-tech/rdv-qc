@@ -166,9 +166,8 @@ export default function DashboardPage() {
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {(Object.entries(themes) as [ThemeName, typeof themes.default][]).map(([key, t]) => (
                     <button key={key} onClick={() => setTheme(key)} title={t.name}
-                      style={{width:24,height:24,borderRadius:"50%",background:t.accent,border:theme===key?"2px solid white":"2px solid transparent",outline:theme===key?`2px solid ${t.accent}`:"none",cursor:"pointer",padding:0,boxShadow:theme===key?`0 0 0 2px ${t.accent}`:"none"}}
+                      style={{width:24,height:24,borderRadius:"50%",background:t.accent,border:theme===key?"2px solid #fff":"2px solid transparent",cursor:"pointer",padding:0}}
                     />
-                  ))}
                 </div>
               </div>
               <div style={{height:1,background:"rgba(0,0,0,0.06)",margin:"4px 0"}} />
