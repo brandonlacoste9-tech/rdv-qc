@@ -158,32 +158,6 @@ export default function DashboardPage() {
       )}
 
       {/* Stats */}
-      {/* Calendars */}
-      <div style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 19, fontWeight: 600, marginBottom: 16, color: colors.text }}>Calendars</h2>
-        
-        <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 22, marginBottom: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div>
-              <div style={{ fontWeight: 600 }}>Planxo Calendar</div>
-              <div style={{ color: "#22c55e", fontSize: 13 }}>● Active</div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <a href="/api/auth/google" style={{ background: "#fff", color: "#000", padding: "8px 16px", borderRadius: 8, textDecoration: "none", fontSize: 13, border: `1px solid ${colors.border}` }}>Google</a>
-              <a href="/api/auth/outlook/connect" style={{ background: "#0078D4", color: "#fff", padding: "8px 16px", borderRadius: 8, textDecoration: "none", fontSize: 13 }}>Outlook</a>
-            </div>
-          </div>
-          
-          <div style={{ fontSize: 13, color: colors.textMuted }}>
-            Mon–Fri, 9:00am – 5:00pm • Timezone: America/Toronto
-          </div>
-          
-          <div style={{ marginTop: 12 }}>
-            <a href="/availability" style={{ color: colors.accent, fontSize: 13 }}>Edit availability →</a>
-          </div>
-        </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 48 }}>
         <div style={{ background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 16, padding: 26, textAlign: "center" }}>
           <div style={{ fontSize: 40, fontWeight: 700 }}>{eventTypes.length}</div>
           <div style={{ color: colors.textMuted, marginTop: 4, fontSize: 14 }}>Types de rendez-vous</div>
