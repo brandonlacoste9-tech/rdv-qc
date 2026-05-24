@@ -23,6 +23,7 @@ export default function VoiceDashboard() {
   const [calls, setCalls] = useState<VoiceCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCall, setSelectedCall] = useState<VoiceCall | null>(null);
+  const [creditBalance, setCreditBalance] = useState<number>(0);
   const [stats, setStats] = useState({
     totalCalls: 0,
     completedCalls: 0,
@@ -41,7 +42,20 @@ export default function VoiceDashboard() {
 
   useEffect(() => {
     fetchCalls();
+    fetchCredits();
   }, []);
+
+  async function fetchCredits() {
+    try {
+      const res = await fetch('/api/voice/credits');
+      if (res.ok) {
+        const data = await res.json();
+        setCreditBalance(data.balance || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch credits:', err);
+    }
+  }
 
   async function fetchCalls() {
     try {
@@ -108,20 +122,52 @@ export default function VoiceDashboard() {
             </h1>
             <p style={{ color: tColors.textMuted }}>Agent vocal intelligent pour automatiser vos rendez-vous</p>
           </div>
-          <a 
-            href="/demo/voice" 
-            style={{
-              padding: '10px 20px',
-              background: 'linear-gradient(135deg, #c8a96e, #a07840)',
-              color: '#1a1208',
-              borderRadius: 10,
-              textDecoration: 'none',
-              fontWeight: 600,
-              fontSize: 14,
-            }}
-          >
-            Tester la démo →
-          </a>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <a 
+              href="/dashboard/voice/credits" 
+              style={{
+                padding: '10px 20px',
+                background: tColors.cardBg,
+                color: tColors.text,
+                border: `1px solid ${tColors.border}`,
+                borderRadius: 10,
+                textDecoration: 'none',
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              💰 Crédits
+            </a>
+            <a 
+              href="/dashboard/voice/workflows" 
+              style={{
+                padding: '10px 20px',
+                background: tColors.cardBg,
+                color: tColors.text,
+                border: `1px solid ${tColors.border}`,
+                borderRadius: 10,
+                textDecoration: 'none',
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              🔄 Workflows
+            </a>
+            <a 
+              href="/demo/voice" 
+              style={{
+                padding: '10px 20px',
+                background: 'linear-gradient(135deg, #c8a96e, #a07840)',
+                color: '#1a1208',
+                borderRadius: 10,
+                textDecoration: 'none',
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              Tester la démo →
+            </a>
+          </div>
         </div>
       </div>
 
@@ -131,6 +177,15 @@ export default function VoiceDashboard() {
         <StatCard title="Complétés" value={stats.completedCalls} icon="✓" color="#10b981" tColors={tColors} />
         <StatCard title="Durée moyenne" value={`${formatDuration(stats.avgDuration)}`} icon="⏱" color="#f59e0b" tColors={tColors} />
         <StatCard title="Taux de succès" value={`${stats.successRate}%`} icon="📈" color="#8b5cf6" tColors={tColors} />
+        <a href="/dashboard/voice/credits" style={{ textDecoration: 'none' }}>
+          <StatCard 
+            title="Crédits disponibles" 
+            value={`$${(creditBalance / 100).toFixed(2)}`} 
+            icon="💰" 
+            color={creditBalance < 300 ? "#ef4444" : "#10b981"} 
+            tColors={tColors} 
+          />
+        </a>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
