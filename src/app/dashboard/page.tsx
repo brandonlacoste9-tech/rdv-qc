@@ -57,14 +57,14 @@ export default function DashboardPage() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  const dark = theme !== "default";
-  const tColors = dark ? {
-    bg: themes.cognac.bg, text: themes.cognac.text, textMuted: themes.cognac.textMuted,
-    cardBg: themes.cognac.cardBg, border: themes.cognac.border, accent: themes.cognac.accent,
-  } : {
-    bg: "#fff", text: "#242424", textMuted: "#898989",
-    cardBg: "#fff", border: "rgba(0,0,0,0.08)", accent: "#242424",
-  };
+  const tColors = colors;
+  const tColors = colors;
+  const tColors = colors;
+  const tColors = colors;
+  const tColors = colors;
+  const tColors = colors;
+  const tColors = colors;
+  const tColors = colors;
 
   const fetchBookings = useCallback(async (filter: FilterValue = activeFilter) => {
     setBookingsLoading(true);
