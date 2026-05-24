@@ -243,8 +243,9 @@ async function executePendingCalls(): Promise<number> {
         continue;
       }
 
-      // Get attendee phone
-      const attendeePhone = booking.attendeePhone;
+      // Get attendee phone - try smsReminderNumber first, then responses
+      const attendeePhone = booking.smsReminderNumber || 
+        (booking.responses && typeof booking.responses === 'object' ? booking.responses.phone : null);
       
       if (!attendeePhone) {
         await markExecutionFailed(execution.id, 'No phone number for attendee');
@@ -269,10 +270,11 @@ async function executePendingCalls(): Promise<number> {
         .single();
 
       // Prepare message with variables replaced
+      const attendeeName = (booking.responses && typeof booking.responses === 'object' ? booking.responses.name : null) || 'there';
       const message = replaceMessageVariables(
         workflow.message_template,
         {
-          attendeeName: booking.attendeeName || 'there',
+          attendeeName: attendeeName,
           eventTitle: eventType?.title || 'appointment',
           eventDate: formatDate(booking.startTime),
           eventTime: formatTime(booking.startTime),
