@@ -3,10 +3,10 @@
 
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { CallSession } from '../../../lib/voice/types';
-import { ConversationManager } from '../../../lib/voice/conversation';
-import { DeepgramSTT } from '../../../lib/voice/deepgram';
-import { ElevenLabsTTS } from '../../../lib/voice/elevenlabs';
+import { CallSession } from '../../../../lib/voice/types';
+import { ConversationManager } from '../../../../lib/voice/conversation';
+import { DeepgramSTT } from '../../../../lib/voice/deepgram';
+import { ElevenLabsTTS } from '../../../../lib/voice/elevenlabs';
 
 // This runs as a separate WebSocket server
 // In production, this would be a separate service or use a managed WebSocket provider
