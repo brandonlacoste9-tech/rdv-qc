@@ -38,6 +38,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ENHANCEMENT: Availability validation per calcom-booking-engine skill
+    // Fetch user's Schedule and check dayOfWeek + time overlap before allowing reschedule
+    const { data: schedule } = await supabase
+      .from('Schedule')
+      .select('*, availability:Availability(*)')
+      .eq('userId', booking.userId)
+      .eq('isDefault', true)
+      .single();
+
+    if (schedule && schedule.availability) {
+      const newStart = new Date(newStartTime);
+      const dayOfWeek = newStart.getDay();
+      const matchingAvailability = schedule.availability.find((a: any) => a.dayOfWeek === dayOfWeek);
+      if (!matchingAvailability) {
+        return NextResponse.json({ error: 'Ce créneau n\'est pas disponible' }, { status: 400 });
+      }
+      // Basic time overlap check (start/end within availability window)
+      const availStart = new Date(`1970-01-01T${matchingAvailability.startTime}`);
+      const availEnd = new Date(`1970-01-01T${matchingAvailability.endTime}`);
+      const slotStart = new Date(`1970-01-01T${newStart.toTimeString().slice(0,5)}`);
+      if (slotStart < availStart || slotStart >= availEnd) {
+        return NextResponse.json({ error: 'Créneau hors disponibilité' }, { status: 400 });
+      }
+    }
+
     const oldStartTime = booking.startTime;
     const oldEndTime = booking.endTime;
 
