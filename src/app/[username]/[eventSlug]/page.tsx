@@ -293,7 +293,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
                 {/* Day Headers */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px", marginBottom: "16px" }}>
                   {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => (
-                    <div key={d} style={{ textAlign: "center", fontSize: "12px", fontWeight: "600", color: colors.dimText", paddingBottom: "8px" }}>
+                    <div key={d} style={{ textAlign: "center", fontSize: "12px", fontWeight: "600", color: colors.dimText, paddingBottom: "8px" }}>
                       {d}
                     </div>
                   ))}

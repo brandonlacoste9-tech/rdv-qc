@@ -164,7 +164,7 @@ model Webhook {
 }
 
 model Law25Consent {
-  id                    String   @id @default(cuidt())
+  id                    String   @id @default(cuid())
   userId                String
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   consentVersion        String
