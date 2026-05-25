@@ -1,56 +1,98 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export async function PUT(request: NextRequest) {
-  const body = await request.json();
-  const { scheduleName, intervals } = body;
-
-  // Get the default user
-  const { data: user } = await supabase.from("users").select("id").eq("email", "info@planxo.ca").single();
-  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
-
-  // Upsert schedule (no isDefault/createdAt/updatedAt — use cal.diy schema)
-  const { data: existing } = await supabase.from("Schedule").select("id").eq("userId", user.id).single();
-
-  let scheduleId: number;
-  if (existing) {
-    scheduleId = existing.id;
-    await supabase.from("Schedule").update({ name: scheduleName }).eq("id", scheduleId);
-  } else {
-    const { data: newSched } = await supabase.from("Schedule").insert({
-      userId: user.id, name: scheduleName, timeZone: "America/Toronto",
-    }).select("id").single();
-    scheduleId = newSched.id;
-  }
-
-  // Delete old availability and insert new one (days array format)
-  await supabase.from("Availability").delete().eq("scheduleId", scheduleId).eq("userId", user.id);
-
-  // Group intervals by day of week into a days array
-  const days: number[] = [];
-  let startTime = "09:00:00";
-  let endTime = "17:00:00";
-
-  for (const i of intervals) {
-    if (i.isActive && !days.includes(i.dayOfWeek)) {
-      days.push(i.dayOfWeek);
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (i.startTime) startTime = i.startTime.length === 5 ? i.startTime + ":00" : i.startTime;
-    if (i.endTime) endTime = i.endTime.length === 5 ? i.endTime + ":00" : i.endTime;
-  }
 
-  if (days.length > 0) {
-    const { error } = await supabase.from("Availability").insert({
-      userId: user.id,
-      scheduleId,
-      days,
-      startTime,
-      endTime,
-    });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+    const body = await request.json();
+    const { scheduleName, timezone, intervals } = body;
 
-  return NextResponse.json({ status: "success" });
+    // 1. Update user timezone
+    if (timezone) {
+      await supabase.from("User").update({ timeZone: timezone }).eq("id", user.id);
+    }
+
+    // 2. Get or create default schedule
+    let { data: schedule } = await supabase
+      .from("Schedule")
+      .select("id")
+      .eq("userId", user.id)
+      .eq("isDefault", true)
+      .single();
+
+    if (!schedule) {
+      const { data: newSchedule, error: createError } = await supabase
+        .from("Schedule")
+        .insert({
+          userId: user.id,
+          name: scheduleName || "Working Hours",
+          timeZone: timezone || "America/Toronto",
+          isDefault: true
+        })
+        .select("id")
+        .single();
+      
+      if (createError) throw createError;
+      schedule = newSchedule;
+    } else if (scheduleName) {
+      await supabase.from("Schedule").update({ name: scheduleName }).eq("id", schedule.id);
+    }
+
+    // 3. Delete old availability intervals
+    await supabase.from("Availability").delete().eq("scheduleId", schedule.id);
+
+    // 4. Insert new intervals
+    if (intervals && intervals.length > 0) {
+      const { error: insertError } = await supabase.from("Availability").insert(
+        intervals.map((i: any) => ({
+          scheduleId: schedule.id,
+          dayOfWeek: i.dayOfWeek,
+          startTime: i.startTime,
+          endTime: i.endTime,
+          isActive: i.isActive ?? true
+        }))
+      );
+      if (insertError) throw insertError;
+    }
+
+    return NextResponse.json({ status: "success" });
+  } catch (error: any) {
+    console.error("Error in availability API:", error);
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data: schedule } = await supabase
+      .from("Schedule")
+      .select(`
+        id,
+        name,
+        timeZone,
+        intervals:Availability(*)
+      `)
+      .eq("userId", user.id)
+      .eq("isDefault", true)
+      .single();
+
+    return NextResponse.json(schedule || { name: "Working Hours", timeZone: "America/Toronto", intervals: [] });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

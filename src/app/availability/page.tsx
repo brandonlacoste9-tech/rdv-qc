@@ -1,32 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { ChevronDown, Copy, Plus, Trash2, Clock, AlertCircle } from "lucide-react";
+import { ChevronDown, Copy, Plus, Trash2, Clock, AlertCircle, Check, Loader2 } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const TIMEZONES = [
-  "America/Toronto",
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "America/Anchorage",
-  "America/Honolulu",
-  "Europe/London",
-  "Europe/Paris",
-  "Europe/Berlin",
-  "Asia/Tokyo",
-  "Asia/Shanghai",
-  "Asia/Hong_Kong",
-  "Asia/Singapore",
-  "Australia/Sydney",
+  "America/Toronto", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+  "America/Anchorage", "America/Honolulu", "Europe/London", "Europe/Paris", "Europe/Berlin",
+  "Asia/Tokyo", "Asia/Shanghai", "Asia/Hong_Kong", "Asia/Singapore", "Australia/Sydney",
 ];
 
 interface TimeSlot {
   id: string;
   startTime: string;
   endTime: string;
+  isActive: boolean;
 }
 
 interface DaySchedule {
@@ -34,7 +22,6 @@ interface DaySchedule {
   slots: TimeSlot[];
 }
 
-// Brand colors
 const colors = {
   bg: "#1a1008",
   bg2: "#241810",
@@ -45,10 +32,9 @@ const colors = {
   accentText: "#1a1008",
   border: "rgba(196,127,58,0.12)",
   cardBg: "#241810",
-  success: "#c47f3a",
   gold: "#d4a853",
   dimText: "#6b5040",
-  error: "#c47f3a",
+  error: "#ef4444",
 };
 
 export default function AvailabilityPage() {
@@ -59,82 +45,66 @@ export default function AvailabilityPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
-  const supabase = createClient();
 
-  // Load existing availability
   useEffect(() => {
-    const loadAvailability = async () => {
+    async function loadData() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        const res = await fetch("/api/availability");
+        const data = await res.json();
+        
+        if (data.error) throw new Error(data.error);
 
-        const { data } = await supabase
-          .from("availability")
-          .select("*")
-          .eq("user_id", user.id);
-
-        const { data: userData } = await supabase
-          .from("users")
-          .select("timezone")
-          .eq("id", user.id)
-          .single();
-
-        if (userData?.timezone) {
-          setTimezone(userData.timezone);
+        const weekly: Record<number, DaySchedule> = {};
+        for (let i = 0; i < 7; i++) {
+          weekly[i] = { enabled: false, slots: [] };
         }
 
-        if (data) {
-          const weekly: Record<number, DaySchedule> = {};
+        if (data.intervals) {
+          data.intervals.forEach((row: any) => {
+            const day = row.dayOfWeek;
+            weekly[day].enabled = true;
+            weekly[day].slots.push({
+              id: row.id,
+              startTime: row.startTime.substring(0, 5),
+              endTime: row.endTime.substring(0, 5),
+              isActive: row.isActive
+            });
+          });
+        }
 
-          // Initialize all days
-          for (let i = 0; i < 7; i++) {
-            weekly[i] = { enabled: false, slots: [] };
+        // Fill empty active days with default slots
+        Object.keys(weekly).forEach(k => {
+          const day = parseInt(k);
+          if (weekly[day].enabled && weekly[day].slots.length === 0) {
+            weekly[day].slots = [{ id: `new-${Date.now()}`, startTime: "09:00", endTime: "17:00", isActive: true }];
           }
+        });
 
-          // Group by day of week
-          const dayMap: Record<number, TimeSlot[]> = {};
-          data.forEach((row: any) => {
-            if (row.day_of_week >= 0) {
-              if (!dayMap[row.day_of_week]) dayMap[row.day_of_week] = [];
-              dayMap[row.day_of_week].push({
-                id: row.id,
-                startTime: row.start_time,
-                endTime: row.end_time,
-              });
-            }
-          });
-
-          // Populate schedule
-          Object.keys(dayMap).forEach((day) => {
-            const dayNum = parseInt(day);
-            weekly[dayNum] = {
-              enabled: true,
-              slots: dayMap[dayNum],
-            };
-          });
-
-          setSchedule(weekly);
-        }
-      } catch (err) {
-        console.error("Error loading availability:", err);
-        setError("Failed to load availability");
+        setSchedule(weekly);
+        if (data.timeZone) setTimezone(data.timeZone);
+      } catch (err: any) {
+        setError(err.message || "Failed to load availability");
       } finally {
         setLoading(false);
       }
-    };
-
-    loadAvailability();
+    }
+    loadData();
   }, []);
 
   const toggleDay = (day: number) => {
-    setSchedule((prev) => ({
-      ...prev,
-      [day]: {
-        ...prev[day],
-        enabled: !prev[day].enabled,
-        slots: prev[day].enabled ? prev[day].slots : [{ id: `new-${Date.now()}`, startTime: "09:00", endTime: "10:00" }],
-      },
-    }));
+    setSchedule((prev) => {
+      const isEnabled = !prev[day].enabled;
+      return {
+        ...prev,
+        [day]: {
+          ...prev[day],
+          enabled: isEnabled,
+          slots: isEnabled && prev[day].slots.length === 0 
+            ? [{ id: `new-${Date.now()}`, startTime: "09:00", endTime: "17:00", isActive: true }]
+            : prev[day].slots,
+        },
+      };
+    });
   };
 
   const addSlot = (day: number) => {
@@ -142,22 +112,24 @@ export default function AvailabilityPage() {
       ...prev,
       [day]: {
         ...prev[day],
-        slots: [
-          ...prev[day].slots,
-          { id: `new-${Date.now()}`, startTime: "10:00", endTime: "11:00" },
-        ],
+        slots: [...prev[day].slots, { id: `new-${Date.now()}`, startTime: "17:00", endTime: "18:00", isActive: true }],
       },
     }));
+    setExpandedDay(day);
   };
 
   const removeSlot = (day: number, slotId: string) => {
-    setSchedule((prev) => ({
-      ...prev,
-      [day]: {
-        ...prev[day],
-        slots: prev[day].slots.filter((s) => s.id !== slotId),
-      },
-    }));
+    setSchedule((prev) => {
+      const newSlots = prev[day].slots.filter((s) => s.id !== slotId);
+      return {
+        ...prev,
+        [day]: {
+          ...prev[day],
+          enabled: newSlots.length > 0,
+          slots: newSlots,
+        },
+      };
+    });
   };
 
   const updateSlot = (day: number, slotId: string, field: "startTime" | "endTime", value: string) => {
@@ -165,67 +137,60 @@ export default function AvailabilityPage() {
       ...prev,
       [day]: {
         ...prev[day],
-        slots: prev[day].slots.map((s) =>
-          s.id === slotId ? { ...s, [field]: value } : s
-        ),
+        slots: prev[day].slots.map((s) => (s.id === slotId ? { ...s, [field]: value } : s)),
       },
     }));
   };
 
-  const copyDaySchedule = (fromDay: number, toDay: number) => {
-    setSchedule((prev) => ({
-      ...prev,
-      [toDay]: {
-        enabled: prev[fromDay].enabled,
-        slots: prev[fromDay].slots.map((s) => ({
-          ...s,
-          id: `new-${Date.now()}-${Math.random()}`,
-        })),
-      },
-    }));
+  const copyDaySchedule = (fromDay: number) => {
+    const source = schedule[fromDay];
+    setSchedule((prev) => {
+      const next = { ...prev };
+      for (let i = 0; i < 7; i++) {
+        if (i !== fromDay) {
+          next[i] = {
+            enabled: source.enabled,
+            slots: source.slots.map(s => ({ ...s, id: `copy-${Date.now()}-${Math.random()}` }))
+          };
+        }
+      }
+      return next;
+    });
+    setSuccess("Copied to all days!");
+    setTimeout(() => setSuccess(""), 2000);
   };
 
-  const saveAvailability = async () => {
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    setSuccess("");
     try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Delete old records
-      await supabase.from("availability").delete().eq("user_id", user.id);
-
-      // Insert new records
-      const rows: any[] = [];
-      Object.keys(schedule).forEach((day) => {
-        const dayNum = parseInt(day);
-        if (schedule[dayNum].enabled) {
-          schedule[dayNum].slots.forEach((slot) => {
-            rows.push({
-              user_id: user.id,
-              day_of_week: dayNum,
-              start_time: slot.startTime,
-              end_time: slot.endTime,
-              timezone,
+      const intervals: any[] = [];
+      Object.entries(schedule).forEach(([day, data]) => {
+        if (data.enabled) {
+          data.slots.forEach(slot => {
+            intervals.push({
+              dayOfWeek: parseInt(day),
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              isActive: true
             });
           });
         }
       });
 
-      if (rows.length > 0) {
-        await supabase.from("availability").insert(rows);
-      }
-
-      // Update timezone
-      await supabase.from("users").update({ timezone }).eq("id", user.id);
-
+      const res = await fetch("/api/availability", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ timezone, intervals }),
+      });
+      
+      if (!res.ok) throw new Error("Failed to save");
+      
       setSuccess("Availability saved successfully!");
       setTimeout(() => setSuccess(""), 3000);
-    } catch (err) {
-      console.error("Error saving availability:", err);
-      setError("Failed to save availability");
+    } catch (err: any) {
+      setError(err.message || "Error saving availability");
     } finally {
       setSaving(false);
     }
@@ -233,194 +198,136 @@ export default function AvailabilityPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", fontFamily: "'Inter', sans-serif" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: `3px solid ${colors.border}`, borderTopColor: colors.accent, margin: "0 auto 16px", animation: "spin 1s linear infinite" }} />
-          <p style={{ color: colors.textMuted, fontSize: "14px" }}>Loading your availability...</p>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#1a1008]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#c47f3a]" />
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: colors.bg, padding: "32px 16px", fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ maxWidth: "800px", margin: "0 auto" }}>
-        {/* Header */}
-        <div style={{ marginBottom: "32px" }}>
-          <h1 style={{ fontSize: "32px", fontWeight: "700", color: colors.text, marginBottom: "8px", fontFamily: "'Cal Sans', 'Inter', sans-serif" }}>Availability Settings</h1>
-          <p style={{ fontSize: "16px", color: colors.textMuted }}>Set your working hours and availability for bookings</p>
-        </div>
+    <div className="min-h-screen bg-[#1a1008] text-[#e8d5c4] p-8 font-sans">
+      <div className="max-w-3xl mx-auto">
+        <header className="mb-10">
+          <h1 className="text-4xl font-bold mb-2 tracking-tight">Availability</h1>
+          <p className="text-[#c4a882]">Configure when you are available for bookings.</p>
+        </header>
 
-        {/* Error/Success Messages */}
         {error && (
-          <div style={{ marginBottom: "24px", padding: "16px", background: "rgba(196,127,58,0.1)", border: `1px solid ${colors.border}`, borderRadius: "8px", display: "flex", alignItems: "flex-start", gap: "12px" }}>
-            <AlertCircle style={{ width: "20px", height: "20px", color: colors.accent, flexShrink: 0, marginTop: "2px" }} />
-            <p style={{ color: colors.text, fontSize: "14px", margin: 0 }}>{error}</p>
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-400">
+            <AlertCircle className="w-5 h-5" />
+            <p>{error}</p>
           </div>
         )}
 
         {success && (
-          <div style={{ marginBottom: "24px", padding: "16px", background: "rgba(212,168,83,0.1)", border: `1px solid rgba(212,168,83,0.3)`, borderRadius: "8px", display: "flex", alignItems: "flex-start", gap: "12px" }}>
-            <div style={{ width: "20px", height: "20px", color: colors.gold, flexShrink: 0, marginTop: "2px" }}>✓</div>
-            <p style={{ color: colors.text, fontSize: "14px", margin: 0 }}>{success}</p>
+          <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3 text-emerald-400">
+            <Check className="w-5 h-5" />
+            <p>{success}</p>
           </div>
         )}
 
-        {/* Timezone Selection */}
-        <div style={{ background: colors.cardBg, borderRadius: "12px", border: `1px solid ${colors.border}`, padding: "24px", marginBottom: "24px" }}>
-          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: colors.textMuted, marginBottom: "8px" }}>
-            Timezone
-          </label>
-          <select
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            style={{ width: "100%", padding: "10px 12px", border: `1px solid ${colors.border}`, borderRadius: "8px", background: colors.bg, color: colors.text, fontSize: "14px", fontFamily: "'Inter', sans-serif", outline: "none", cursor: "pointer" }}
-          >
-            {TIMEZONES.map((tz) => (
-              <option key={tz} value={tz} style={{ background: colors.bg, color: colors.text }}>
-                {tz}
-              </option>
-            ))}
-          </select>
-          <p style={{ fontSize: "12px", color: colors.dimText, marginTop: "8px", margin: "8px 0 0" }}>
-            All times will be displayed in this timezone
-          </p>
-        </div>
+        <div className="space-y-6">
+          {/* Timezone Section */}
+          <section className="bg-[#241810] rounded-2xl border border-white/5 p-6">
+            <label className="block text-sm font-semibold text-[#c4a882] mb-3">Timezone</label>
+            <select
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              className="w-full bg-[#1a1008] border border-white/10 rounded-xl p-3 outline-none focus:border-[#c47f3a] transition-colors"
+            >
+              {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+            </select>
+          </section>
 
-        {/* Weekly Schedule */}
-        <div style={{ background: colors.cardBg, borderRadius: "12px", border: `1px solid ${colors.border}`, overflow: "hidden" }}>
-          <div style={{ padding: "16px 24px", borderBottom: `1px solid ${colors.border}`, background: "rgba(196,127,58,0.08)" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: "600", color: colors.text, display: "flex", alignItems: "center", gap: "8px", margin: 0 }}>
-              <Clock style={{ width: "20px", height: "20px" }} />
-              Weekly Hours
-            </h2>
-          </div>
+          {/* Schedule Section */}
+          <section className="bg-[#241810] rounded-2xl border border-white/5 overflow-hidden">
+            <div className="p-6 border-b border-white/5 bg-white/5 flex items-center gap-3">
+              <Clock className="w-5 h-5 text-[#c47f3a]" />
+              <h2 className="font-semibold">Weekly Hours</h2>
+            </div>
 
-          <div>
-            {DAYS.map((day, index) => (
-              <div key={index} style={{ padding: "24px", borderBottom: index < DAYS.length - 1 ? `1px solid ${colors.border}` : "none" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                    <input
-                      type="checkbox"
-                      id={`day-${index}`}
-                      checked={schedule[index]?.enabled || false}
-                      onChange={() => toggleDay(index)}
-                      style={{ width: "20px", height: "20px", cursor: "pointer", accentColor: colors.accent }}
-                    />
-                    <label
-                      htmlFor={`day-${index}`}
-                      style={{ fontSize: "16px", fontWeight: "600", color: colors.text, cursor: "pointer", margin: 0 }}
-                    >
-                      {day}
-                    </label>
+            <div className="divide-y divide-white/5">
+              {DAYS.map((day, idx) => (
+                <div key={day} className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div 
+                        onClick={() => toggleDay(idx)}
+                        className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors ${schedule[idx]?.enabled ? 'bg-[#c47f3a]' : 'bg-white/10'}`}
+                      >
+                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${schedule[idx]?.enabled ? 'left-7' : 'left-1'}`} />
+                      </div>
+                      <span className={`font-medium ${schedule[idx]?.enabled ? 'text-[#e8d5c4]' : 'text-[#6b5040]'}`}>{day}</span>
+                    </div>
+
+                    {schedule[idx]?.enabled && (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => addSlot(idx)} className="p-2 hover:bg-white/5 rounded-lg text-[#c4a882] transition-colors">
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => copyDaySchedule(idx)} className="p-2 hover:bg-white/5 rounded-lg text-[#c4a882] transition-colors" title="Copy to all days">
+                          <Copy className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setExpandedDay(expandedDay === idx ? null : idx)} className="p-2 hover:bg-white/5 rounded-lg text-[#c4a882] transition-colors">
+                          <ChevronDown className={`w-4 h-4 transition-transform ${expandedDay === idx ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {schedule[index]?.enabled && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <button
-                        onClick={() => addSlot(index)}
-                        style={{ padding: "8px", color: colors.accent, background: "transparent", border: "none", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", transition: "background 0.2s" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.1)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                        title="Add time slot"
-                      >
-                        <Plus style={{ width: "16px", height: "16px" }} />
-                      </button>
-                      {index < 5 && (
-                        <button
-                          onClick={() => copyDaySchedule(index, index + 1)}
-                          style={{ padding: "8px", color: colors.textMuted, background: "transparent", border: "none", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", transition: "background 0.2s" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.08)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                          title="Copy to next day"
-                        >
-                          <Copy style={{ width: "16px", height: "16px" }} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setExpandedDay(expandedDay === index ? null : index)}
-                        style={{ padding: "8px", color: colors.textMuted, background: "transparent", border: "none", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", transition: "all 0.2s" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.08)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                      >
-                        <ChevronDown
-                          style={{ width: "16px", height: "16px", transform: expandedDay === index ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
-                        />
-                      </button>
+                  {schedule[idx]?.enabled && (
+                    <div className={`mt-4 space-y-3 ${expandedDay === idx ? 'block' : 'hidden md:block'}`}>
+                      {schedule[idx].slots.map((slot) => (
+                        <div key={slot.id} className="flex items-center gap-3 pl-16">
+                          <input
+                            type="time"
+                            value={slot.startTime}
+                            onChange={(e) => updateSlot(idx, slot.id, "startTime", e.target.value)}
+                            className="bg-[#1a1008] border border-white/10 rounded-lg p-2 text-sm outline-none focus:border-[#c47f3a]"
+                          />
+                          <span className="text-[#6b5040]">-</span>
+                          <input
+                            type="time"
+                            value={slot.endTime}
+                            onChange={(e) => updateSlot(idx, slot.id, "endTime", e.target.value)}
+                            className="bg-[#1a1008] border border-white/10 rounded-lg p-2 text-sm outline-none focus:border-[#c47f3a]"
+                          />
+                          <button onClick={() => removeSlot(idx, slot.id)} className="p-2 text-red-400/50 hover:text-red-400 transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
+                  
+                  {schedule[idx]?.enabled && expandedDay !== idx && (
+                    <div className="md:hidden mt-2 pl-16 text-sm text-[#c4a882]">
+                      {schedule[idx].slots.map(s => `${s.startTime} - ${s.endTime}`).join(", ")}
+                    </div>
+                  )}
+
+                  {!schedule[idx]?.enabled && (
+                    <div className="mt-2 pl-16 text-sm text-[#6b5040]">Unavailable</div>
+                  )}
                 </div>
+              ))}
+            </div>
+          </section>
 
-                {schedule[index]?.enabled && expandedDay === index && (
-                  <div style={{ marginTop: "16px", paddingLeft: "36px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                    {schedule[index].slots.map((slot) => (
-                      <div key={slot.id} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <input
-                          type="time"
-                          value={slot.startTime}
-                          onChange={(e) =>
-                            updateSlot(index, slot.id, "startTime", e.target.value)
-                          }
-                          style={{ padding: "8px 12px", border: `1px solid ${colors.border}`, borderRadius: "8px", background: colors.bg, color: colors.text, fontSize: "14px", fontFamily: "'Inter', sans-serif", outline: "none", cursor: "pointer" }}
-                        />
-                        <span style={{ color: colors.dimText }}>–</span>
-                        <input
-                          type="time"
-                          value={slot.endTime}
-                          onChange={(e) =>
-                            updateSlot(index, slot.id, "endTime", e.target.value)
-                          }
-                          style={{ padding: "8px 12px", border: `1px solid ${colors.border}`, borderRadius: "8px", background: colors.bg, color: colors.text, fontSize: "14px", fontFamily: "'Inter', sans-serif", outline: "none", cursor: "pointer" }}
-                        />
-                        <button
-                          onClick={() => removeSlot(index, slot.id)}
-                          style={{ padding: "8px", color: colors.accent, background: "transparent", border: "none", borderRadius: "8px", cursor: "pointer", marginLeft: "auto", display: "flex", alignItems: "center", transition: "background 0.2s" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.1)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                          title="Remove slot"
-                        >
-                          <Trash2 style={{ width: "16px", height: "16px" }} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {schedule[index]?.enabled && expandedDay !== index && (
-                  <div style={{ fontSize: "14px", color: colors.textMuted, paddingLeft: "36px" }}>
-                    {schedule[index].slots.map((slot, i) => (
-                      <div key={i}>
-                        {slot.startTime} – {slot.endTime}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Save Button */}
-        <div style={{ marginTop: "32px", display: "flex", gap: "16px" }}>
           <button
-            onClick={saveAvailability}
+            onClick={handleSave}
             disabled={saving}
-            style={{ flex: 1, padding: "14px 24px", background: colors.accent, color: colors.accentText, fontWeight: "600", borderRadius: "10px", border: "none", cursor: saving ? "not-allowed" : "pointer", fontSize: "15px", fontFamily: "'Inter', sans-serif", opacity: saving ? 0.7 : 1, transition: "all 0.2s" }}
-            onMouseEnter={(e) => !saving && (e.currentTarget.style.background = colors.accentHover)}
-            onMouseLeave={(e) => (e.currentTarget.style.background = colors.accent)}
+            className="w-full bg-[#c47f3a] hover:bg-[#d4944e] disabled:opacity-50 disabled:cursor-not-allowed text-[#1a1008] font-bold py-4 rounded-2xl transition-all shadow-lg shadow-[#c47f3a]/10 flex items-center justify-center gap-2"
           >
-            {saving ? "Saving..." : "Save Availability"}
+            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Availability"}
           </button>
         </div>
 
-        {/* Info Box */}
-        <div style={{ marginTop: "32px", padding: "16px", background: "rgba(212,168,83,0.08)", border: `1px solid rgba(212,168,83,0.2)`, borderRadius: "8px" }}>
-          <p style={{ fontSize: "14px", color: colors.text, margin: 0 }}>
-            <strong>Tip:</strong> You can add multiple time slots per day (e.g., morning and afternoon sessions). Use the copy button to quickly apply the same schedule to the next day.
+        <footer className="mt-12 p-6 bg-[#c47f3a]/5 border border-[#c47f3a]/10 rounded-2xl">
+          <p className="text-sm text-[#c4a882] leading-relaxed">
+            <strong className="text-[#c47f3a]">Pro Tip:</strong> You can add multiple slots per day to account for breaks. Use the copy icon to quickly apply your schedule across the entire week.
           </p>
-        </div>
+        </footer>
       </div>
     </div>
   );
