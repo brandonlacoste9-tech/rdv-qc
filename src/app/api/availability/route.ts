@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +12,19 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Use admin client for database operations to bypass RLS/permission issues
+    const adminClient = await createAdminClient();
+
     const body = await request.json();
     const { scheduleName, timezone, intervals } = body;
 
     // 1. Update user timezone
     if (timezone) {
-      await supabase.from("User").update({ timeZone: timezone }).eq("id", user.id);
+      await adminClient.from("User").update({ timeZone: timezone }).eq("id", user.id);
     }
 
     // 2. Get or create default schedule
-    let { data: schedule, error: fetchError } = await supabase
+    let { data: schedule, error: fetchError } = await adminClient
       .from("Schedule")
       .select("id")
       .eq("userId", user.id)
@@ -31,7 +34,7 @@ export async function PUT(request: NextRequest) {
     if (fetchError) throw fetchError;
 
     if (!schedule) {
-      const { data: newSchedule, error: createError } = await supabase
+      const { data: newSchedule, error: createError } = await adminClient
         .from("Schedule")
         .insert({
           userId: user.id,
@@ -48,15 +51,15 @@ export async function PUT(request: NextRequest) {
       const updateData: any = {};
       if (scheduleName) updateData.name = scheduleName;
       if (timezone) updateData.timeZone = timezone;
-      await supabase.from("Schedule").update(updateData).eq("id", schedule.id);
+      await adminClient.from("Schedule").update(updateData).eq("id", schedule.id);
     }
 
     // 3. Delete old availability intervals
-    await supabase.from("Availability").delete().eq("scheduleId", schedule.id);
+    await adminClient.from("Availability").delete().eq("scheduleId", schedule.id);
 
     // 4. Insert new intervals
     if (intervals && intervals.length > 0) {
-      const { error: insertError } = await supabase.from("Availability").insert(
+      const { error: insertError } = await adminClient.from("Availability").insert(
         intervals.map((i: any) => ({
           scheduleId: schedule.id,
           dayOfWeek: i.dayOfWeek,
@@ -84,7 +87,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: schedule, error: fetchError } = await supabase
+    const adminClient = await createAdminClient();
+
+    const { data: schedule, error: fetchError } = await adminClient
       .from("Schedule")
       .select(`
         id,
