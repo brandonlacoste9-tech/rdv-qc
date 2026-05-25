@@ -59,8 +59,11 @@ export default function AvailabilityPage() {
           weekly[i] = { enabled: false, slots: [] };
         }
 
-        if (data.intervals) {
-          data.intervals.forEach((row: any) => {
+        // Handle case where data might be null or missing intervals
+        const intervals = data?.intervals || [];
+        
+        if (intervals.length > 0) {
+          intervals.forEach((row: any) => {
             const day = row.dayOfWeek;
             weekly[day].enabled = true;
             weekly[day].slots.push({

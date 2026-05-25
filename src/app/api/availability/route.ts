@@ -13,6 +13,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    console.log("Saving availability body:", JSON.stringify(body, null, 2));
     const { scheduleName, timezone, intervals } = body;
 
     // 1. Update user timezone
@@ -29,6 +30,7 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (!schedule) {
+      console.log("Creating new schedule for user:", user.id);
       const { data: newSchedule, error: createError } = await supabase
         .from("Schedule")
         .insert({
@@ -40,17 +42,26 @@ export async function PUT(request: NextRequest) {
         .select("id")
         .single();
       
-      if (createError) throw createError;
+      if (createError) {
+        console.error("Error creating schedule:", createError);
+        throw createError;
+      }
       schedule = newSchedule;
     } else if (scheduleName) {
       await supabase.from("Schedule").update({ name: scheduleName }).eq("id", schedule.id);
     }
 
     // 3. Delete old availability intervals
-    await supabase.from("Availability").delete().eq("scheduleId", schedule.id);
+    console.log("Deleting old intervals for schedule:", schedule.id);
+    const { error: deleteError } = await supabase.from("Availability").delete().eq("scheduleId", schedule.id);
+    if (deleteError) {
+      console.error("Error deleting intervals:", deleteError);
+      throw deleteError;
+    }
 
     // 4. Insert new intervals
     if (intervals && intervals.length > 0) {
+      console.log(`Inserting ${intervals.length} new intervals`);
       const { error: insertError } = await supabase.from("Availability").insert(
         intervals.map((i: any) => ({
           scheduleId: schedule.id,
@@ -60,7 +71,10 @@ export async function PUT(request: NextRequest) {
           isActive: i.isActive ?? true
         }))
       );
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error("Error inserting intervals:", insertError);
+        throw insertError;
+      }
     }
 
     return NextResponse.json({ status: "success" });
