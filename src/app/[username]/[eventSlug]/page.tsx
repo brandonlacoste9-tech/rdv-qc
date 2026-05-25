@@ -273,7 +273,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
               <div style={{ padding: "16px 24px", borderBottom: `1px solid ${colors.border}`, background: "rgba(196,127,58,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <h2 style={{ fontSize: "18px", fontWeight: "600", color: colors.text, margin: 0 }}>{monthNames[m]} {y}</h2>
                 <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={() => nav(-1)} style={{ padding: "8px", background: "transparent", border: "none", borderRadius: "8px", cursor: "pointer", color: colors.textMuted", display: "flex", alignItems: "center", transition: "all 0.2s" }}
+                  <button onClick={() => nav(-1)} style={{ padding: "8px", background: "transparent", border: "none", borderRadius: "8px", cursor: "pointer", color: colors.textMuted, display: "flex", alignItems: "center", transition: "all 0.2s" }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.1)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
