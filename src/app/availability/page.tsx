@@ -37,7 +37,15 @@ interface DaySchedule {
 }
 
 export default function AvailabilityPage() {
-  const [schedule, setSchedule] = useState<Record<number, DaySchedule>>({});
+  const [schedule, setSchedule] = useState<Record<number, DaySchedule>>({
+    0: { enabled: false, slots: [] },
+    1: { enabled: false, slots: [] },
+    2: { enabled: false, slots: [] },
+    3: { enabled: false, slots: [] },
+    4: { enabled: false, slots: [] },
+    5: { enabled: false, slots: [] },
+    6: { enabled: false, slots: [] },
+  });
   const [timezone, setTimezone] = useState("America/Toronto");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
