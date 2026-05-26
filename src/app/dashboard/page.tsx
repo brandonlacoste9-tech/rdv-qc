@@ -89,7 +89,7 @@ export default function DashboardPage() {
         {/* Header */}
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ fontSize: 32, fontWeight: 700, color: colors.text, margin: 0 }}>
-            Welcome back, {userName || "User"}!
+            Hi {userName || "User"}
           </h1>
           <p style={{ fontSize: 14, color: colors.textMuted, margin: "8px 0 0" }}>
             Here's an overview of your scheduling activity
