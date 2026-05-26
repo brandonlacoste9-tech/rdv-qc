@@ -40,7 +40,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         }}
       >
         <div style={{ padding: "24px 20px", borderBottom: `1px solid ${colors.border}` }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: colors.text }}>Planxo</div>
+          <Link href="/" style={{ textDecoration: "none" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: colors.text }}>Planxo</div>
+          </Link>
           <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>Scheduling Platform</div>
         </div>
 
