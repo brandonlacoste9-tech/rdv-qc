@@ -22,10 +22,15 @@ export class VoiceAgentErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[VoiceSchedulingAgent] Client-side crash caught:', error, errorInfo);
+    // Also log a more readable version
+    console.error('Error message:', error?.message);
+    console.error('Stack:', error?.stack);
   }
 
   render() {
     if (this.state.hasError) {
+      const errorMessage = this.state.error?.message || 'Unknown error';
+
       return (
         this.props.fallback || (
           <div style={{
@@ -37,25 +42,48 @@ export class VoiceAgentErrorBoundary extends React.Component<
             textAlign: 'center'
           }}>
             <h3 style={{ color: '#c8a96e', marginBottom: 12 }}>Something went wrong with the voice agent</h3>
-            <p style={{ color: '#a08060', marginBottom: 16 }}>
-              The agent crashed. This is usually caused by rapid mic/speech interactions.
+            
+            <p style={{ color: '#a08060', marginBottom: 8, fontSize: 13 }}>
+              {errorMessage}
             </p>
-            <button
-              onClick={() => window.location.reload()}
-              style={{
-                background: '#c8a96e',
-                color: '#1a1208',
-                padding: '10px 20px',
-                borderRadius: 8,
-                border: 'none',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Reload Page
-            </button>
-            <div style={{ marginTop: 12, fontSize: 12, color: '#80604a' }}>
-              (Check browser console for technical details)
+            <p style={{ color: '#a08060', marginBottom: 16, fontSize: 14 }}>
+              This is usually caused by rapid mic/speech interactions or browser compatibility issues.
+            </p>
+
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => this.setState({ hasError: false, error: undefined })}
+                style={{
+                  background: '#c8a96e',
+                  color: '#1a1208',
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Try Again
+              </button>
+
+              <button
+                onClick={() => window.location.reload()}
+                style={{
+                  background: 'transparent',
+                  color: '#c8a96e',
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: '1px solid #c8a96e',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Reload Page
+              </button>
+            </div>
+
+            <div style={{ marginTop: 16, fontSize: 11, color: '#80604a' }}>
+              Check browser console (F12) for technical details.
             </div>
           </div>
         )

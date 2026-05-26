@@ -150,19 +150,20 @@ export function VoiceSchedulingAgent({
 
   // Recreate recognition when language changes (ensures correct lang)
   useEffect(() => {
-    // If listening, stop first
-    if (isListeningRef.current) {
-      stopListening();
-    }
-
-    // Destroy old instance
-    if (recognitionRef.current) {
-      try {
+    // Directly abort instead of calling stopListening (avoids dependency issues)
+    try {
+      if (recognitionRef.current) {
         recognitionRef.current.abort();
-      } catch {}
-    }
+      }
+    } catch {}
+
     recognitionRef.current = createRecognition();
-  }, [selectedLang, createRecognition, stopListening]);
+
+    // If we were listening, the old instance is dead — user will need to click mic again
+    // This is safer than trying to auto-restart during language change
+    setIsListening(false);
+    isListeningRef.current = false;
+  }, [selectedLang, createRecognition]);
 
   // Tools configuration
   const getTools = useCallback((): AITools => ({
@@ -338,48 +339,69 @@ export function VoiceSchedulingAgent({
     }
   }, [selectedVoice, selectedLang, volume, mode, stopSpeaking]);
 
-  // === Fast & reliable startListening ===
+  // === Fast & reliable startListening (with extra guards) ===
   const startListening = useCallback(() => {
-    if (isListeningRef.current || isProcessingRef.current) return;
+    if (isListeningRef.current || isProcessingRef.current) {
+      return;
+    }
 
-    // Use pre-created instance (recreated on language change)
     if (!recognitionRef.current) {
       recognitionRef.current = createRecognition();
     }
 
     if (!recognitionRef.current) {
       setSpeechError('Microphone not supported in this browser (Chrome/Edge recommended).');
+      setIsListening(false);
+      isListeningRef.current = false;
       return;
     }
 
-    stopSpeaking();
-    setSpeechError('');
-    setInterimTranscript('');
-
     try {
-      // Set language right before starting — critical for language switching
+      stopSpeaking();
+      setSpeechError('');
+      setInterimTranscript('');
+
+      // Always set lang immediately before start
       recognitionRef.current.lang = selectedLang;
+
       recognitionRef.current.start();
-      // Only set if not already optimistically set by toggleListening
-      if (!isListeningRef.current) setIsListening(true);
-    } catch (e) {
+
+      setIsListening(true);
+      isListeningRef.current = true;
+    } catch (e: any) {
       console.error('Error starting SpeechRecognition:', e);
-      setSpeechError('Could not start microphone. Please try again.');
-      setIsListening(false);
+
+      // Handle the very common "already started" error gracefully
+      if (String(e?.message || e).toLowerCase().includes('already started')) {
+        try { recognitionRef.current?.abort(); } catch {}
+        setIsListening(false);
+        isListeningRef.current = false;
+      } else {
+        setSpeechError('Could not start microphone. Please try again.');
+        setIsListening(false);
+        isListeningRef.current = false;
+      }
     }
   }, [selectedLang, createRecognition, stopSpeaking]);
 
   const stopListening = useCallback(() => {
-    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-
-    if (recognitionRef.current) {
-      try {
-        // abort() is faster than stop() for quick response
-        recognitionRef.current.abort();
-      } catch {}
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
     }
+
+    try {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    } catch (e) {
+      // Swallow abort errors — they are common and not fatal
+      console.warn('SpeechRecognition abort warning (non-critical):', e);
+    }
+
     setIsListening(false);
     setInterimTranscript('');
+    isListeningRef.current = false;
   }, []);
 
   const toggleListening = useCallback(() => {
