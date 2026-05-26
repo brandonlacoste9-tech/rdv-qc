@@ -88,6 +88,82 @@ export function VoiceSchedulingAgent({
   continuousModeRef.current = continuousMode;
   isProcessingRef.current = isProcessing;
 
+  // === Speech Recognition Instance Management (for fast + reliable language switching) ===
+  const createRecognition = useCallback(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) return null;
+
+    try {
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+      rec.lang = selectedLang;
+
+      rec.onresult = (event: any) => {
+        let interim = '';
+        let final = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) final = transcript;
+          else interim = transcript;
+        }
+        setInterimTranscript(interim);
+
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = setTimeout(() => {
+          if (isListeningRef.current) stopListening();
+        }, 2600);
+
+        if (final.trim()) {
+          setInterimTranscript('');
+          if (!continuousModeRef.current) stopListening();
+          handleSendMessage(final.trim());
+        }
+      };
+
+      rec.onerror = (event: any) => {
+        if (event.error !== 'no-speech') {
+          setSpeechError(
+            event.error === 'not-allowed'
+              ? 'Please allow microphone access.'
+              : 'Speech recognition error.'
+          );
+        }
+        setIsListening(false);
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+        setInterimTranscript('');
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      };
+
+      return rec;
+    } catch (e) {
+      console.error('Failed to create SpeechRecognition', e);
+      return null;
+    }
+  }, [selectedLang]);
+
+  // Recreate recognition when language changes (ensures correct lang)
+  useEffect(() => {
+    // If listening, stop first
+    if (isListeningRef.current) {
+      stopListening();
+    }
+
+    // Destroy old instance
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {}
+    }
+    recognitionRef.current = createRecognition();
+  }, [selectedLang, createRecognition, stopListening]);
+
   // Tools configuration
   const getTools = useCallback((): AITools => ({
     checkAvailability: async (date: string) => {
@@ -262,14 +338,17 @@ export function VoiceSchedulingAgent({
     }
   }, [selectedVoice, selectedLang, volume, mode, stopSpeaking]);
 
-  // === Speech Recognition with advanced VAD (hardened) ===
+  // === Fast & reliable startListening ===
   const startListening = useCallback(() => {
-    // Guard: don't start if already listening or processing
-    if (isListening || isProcessing) return;
+    if (isListeningRef.current || isProcessingRef.current) return;
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setSpeechError('Microphone not supported in this browser (use Chrome/Edge).');
+    // Use pre-created instance (recreated on language change)
+    if (!recognitionRef.current) {
+      recognitionRef.current = createRecognition();
+    }
+
+    if (!recognitionRef.current) {
+      setSpeechError('Microphone not supported in this browser (Chrome/Edge recommended).');
       return;
     }
 
@@ -277,75 +356,27 @@ export function VoiceSchedulingAgent({
     setSpeechError('');
     setInterimTranscript('');
 
-    if (!recognitionRef.current) {
-      try {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.maxAlternatives = 1;
-
-        recognition.onresult = (event: any) => {
-          let interim = '';
-          let final = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) final = transcript;
-            else interim = transcript;
-          }
-          setInterimTranscript(interim);
-
-          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-          silenceTimerRef.current = setTimeout(() => {
-            if (isListeningRef.current) stopListening();
-          }, 2750);
-
-          if (final.trim()) {
-            setInterimTranscript('');
-            if (!continuousModeRef.current) stopListening();
-            handleSendMessage(final.trim());
-          }
-        };
-
-        recognition.onerror = (event: any) => {
-          if (event.error !== 'no-speech') {
-            setSpeechError(event.error === 'not-allowed' 
-              ? 'Please allow microphone access in your browser.' 
-              : 'Speech recognition error.');
-          }
-          setIsListening(false);
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-          setInterimTranscript('');
-          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        };
-
-        recognitionRef.current = recognition;
-      } catch (e) {
-        console.error('Failed to create SpeechRecognition', e);
-        setSpeechError('Could not initialize microphone.');
-        return;
-      }
-    }
-
     try {
-      if (recognitionRef.current) {
-        recognitionRef.current.lang = selectedLang;
-        recognitionRef.current.start();
-        setIsListening(true);
-      }
+      // Set language right before starting — critical for language switching
+      recognitionRef.current.lang = selectedLang;
+      recognitionRef.current.start();
+      // Only set if not already optimistically set by toggleListening
+      if (!isListeningRef.current) setIsListening(true);
     } catch (e) {
-      console.error('Error starting recognition:', e);
+      console.error('Error starting SpeechRecognition:', e);
       setSpeechError('Could not start microphone. Please try again.');
       setIsListening(false);
     }
-  }, [selectedLang, stopSpeaking, isListening, isProcessing]);
+  }, [selectedLang, createRecognition, stopSpeaking]);
 
   const stopListening = useCallback(() => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
     if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch {}
+      try {
+        // abort() is faster than stop() for quick response
+        recognitionRef.current.abort();
+      } catch {}
     }
     setIsListening(false);
     setInterimTranscript('');
@@ -353,7 +384,19 @@ export function VoiceSchedulingAgent({
 
   const toggleListening = useCallback(() => {
     if (isProcessingRef.current) return;
-    isListeningRef.current ? stopListening() : startListening();
+
+    if (isListeningRef.current) {
+      stopListening();
+    } else {
+      // Optimistic update for instant perceived speed
+      setIsListening(true);
+      isListeningRef.current = true;
+
+      // Tiny delay so the browser has time to paint the "Listening" state
+      setTimeout(() => {
+        startListening();
+      }, 25);
+    }
   }, [startListening, stopListening]);
 
   // === Core message handling ===
