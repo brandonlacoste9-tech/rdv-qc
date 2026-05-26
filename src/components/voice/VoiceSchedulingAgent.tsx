@@ -269,10 +269,10 @@ export function VoiceSchedulingAgent({
       try {
         audioEl.pause();
         audioEl.currentTime = 0;
-        // Clear src to help browser release resources cleanly
-        audioEl.src = '';
+        // Be very conservative: avoid clearing src during hot paths to prevent removeChild crashes
+        // The next speak() will overwrite src anyway
       } catch (e) {
-        console.warn('Audio stop warning:', e);
+        console.warn('Audio stop warning (non-fatal):', e);
       }
     }
     if (currentAudioUrlRef.current) {
@@ -328,20 +328,21 @@ export function VoiceSchedulingAgent({
           currentAudioUrlRef.current = null;
         }
 
-        audioEl.onended = null; // prevent duplicate handlers
+        // Clear handler to avoid duplicates
+        try { audioEl.onended = null; } catch {}
 
-        // Continuous mode — but skip auto-restart right after an audio error (prevents cascading crashes)
+        // Continuous mode restart is now very conservative after any audio activity
         const timeSinceAudioError = Date.now() - lastAudioErrorRef.current;
         if (continuousModeRef.current && 
             !isListeningRef.current && 
             !isProcessingRef.current &&
             recognitionRef.current &&
-            timeSinceAudioError > 4000) {
+            timeSinceAudioError > 5000) {   // longer cooldown
           setTimeout(() => {
             if (!isListeningRef.current && !isProcessingRef.current) {
               startListening();
             }
-          }, 650);
+          }, 800); // slightly longer delay
         }
       };
 
@@ -802,13 +803,13 @@ export function VoiceSchedulingAgent({
           setIsSpeaking(false);
           lastAudioErrorRef.current = Date.now();
 
-          // Aggressive cleanup on audio errors to prevent DOM reconciliation crashes
+          // Very passive cleanup — avoid .load() or heavy DOM ops that can trigger more errors / removeChild issues
           const audioEl = audioRef.current;
           if (audioEl) {
             try {
-              audioEl.src = '';
               audioEl.onended = null;
-              audioEl.load();
+              // Do not set src='' or call load() here — it often causes repeated error events and DOM conflicts
+              // The next speak() or stopSpeaking() will handle src assignment
             } catch {}
           }
           if (currentAudioUrlRef.current) {
