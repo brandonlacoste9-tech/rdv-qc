@@ -255,6 +255,7 @@ function ConferencingSection({ colors, conferencing, saveConferencing }: any) {
 
 function APISection({ colors, eventTypes, username }: any) {
   const [copied, setCopied] = useState(false);
+  const [tgState, setTgState] = useState<"idle" | "connecting" | "connected">("idle");
   const apiKey = "cal_live_planxo_demo_key";
 
   const handleCopy = () => {
@@ -347,16 +348,29 @@ function APISection({ colors, eventTypes, username }: any) {
         </p>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button style={{
-            background: "#2AABEE", color: "#fff", border: "none",
+          <button 
+            onClick={() => {
+              if (tgState === "connected") return;
+              setTgState("connecting");
+              setTimeout(() => setTgState("connected"), 1500);
+            }}
+            disabled={tgState !== "idle"}
+            style={{
+            background: tgState === "connected" ? "#10b981" : "#2AABEE", 
+            color: "#fff", border: "none",
             borderRadius: 8, padding: "10px 18px", fontSize: 14, fontWeight: 600,
-            cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-            boxShadow: "0 4px 12px rgba(42, 171, 238, 0.25)"
+            cursor: tgState === "connected" ? "default" : (tgState === "connecting" ? "wait" : "pointer"), 
+            display: "flex", alignItems: "center", gap: 8,
+            boxShadow: tgState === "connected" ? "0 4px 12px rgba(16, 185, 129, 0.25)" : "0 4px 12px rgba(42, 171, 238, 0.25)",
+            transition: "all 0.3s ease",
+            opacity: tgState === "connecting" ? 0.7 : 1
           }}>
-            Connecter Telegram
+            {tgState === "idle" && "Connecter Telegram"}
+            {tgState === "connecting" && "Connexion en cours..."}
+            {tgState === "connected" && <><Check size={16} /> Connecté</>}
           </button>
-          <span style={{ fontSize: 13, color: colors.textMuted }}>
-            Non connecté
+          <span style={{ fontSize: 13, color: tgState === "connected" ? "#10b981" : colors.textMuted, fontWeight: tgState === "connected" ? 600 : 400, transition: "color 0.3s" }}>
+            {tgState === "connected" ? "Actif" : "Non connecté"}
           </span>
         </div>
       </div>
