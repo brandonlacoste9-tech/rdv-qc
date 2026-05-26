@@ -72,6 +72,9 @@ export function VoiceSchedulingAgent({
   const [lastAssistantText, setLastAssistantText] = useState('');
   const [hasSpokenInitial, setHasSpokenInitial] = useState(false);
 
+  // Safe mode: automatically disables Continuous Mode after the first audio error
+  const [safeModeActive, setSafeModeActive] = useState(false);
+
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);           // React-controlled audio element
   const currentAudioUrlRef = useRef<string | null>(null);
@@ -79,6 +82,7 @@ export function VoiceSchedulingAgent({
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastAudioErrorRef = useRef<number>(0);
+  const hasHadAudioErrorRef = useRef(false);
 
   // Refs to avoid stale closures in callbacks
   const isListeningRef = useRef(isListening);
@@ -569,9 +573,31 @@ export function VoiceSchedulingAgent({
           </select>
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-          <input type="checkbox" checked={continuousMode} onChange={e => setContinuousMode(e.target.checked)} />
+        <label style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 6, 
+          fontSize: 13,
+          opacity: safeModeActive ? 0.6 : 1,
+          cursor: safeModeActive ? 'not-allowed' : 'pointer'
+        }}>
+          <input 
+            type="checkbox" 
+            checked={continuousMode} 
+            onChange={e => setContinuousMode(e.target.checked)}
+            disabled={safeModeActive}
+          />
           Continuous mode
+          {safeModeActive && (
+            <span style={{ 
+              fontSize: 11, 
+              color: '#ef4444',
+              marginLeft: 4,
+              whiteSpace: 'nowrap'
+            }}>
+              (safe mode)
+            </span>
+          )}
         </label>
 
         {/* Volume */}
@@ -593,6 +619,23 @@ export function VoiceSchedulingAgent({
           ⟳ New conversation
         </button>
       </div>
+
+      {/* Safe Mode notice */}
+      {safeModeActive && (
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          color: '#ef4444',
+          padding: '8px 12px',
+          borderRadius: 8,
+          fontSize: 12,
+          marginBottom: 12,
+          textAlign: 'center'
+        }}>
+          ⚠️ Safe mode activated — Continuous mode has been disabled after an audio playback issue. 
+          You can still use the mic manually.
+        </div>
+      )}
 
       {/* Main Mic Button + Visualizer */}
       <div style={{ textAlign: 'center', marginBottom: 16 }}>
@@ -802,6 +845,13 @@ export function VoiceSchedulingAgent({
           console.error('[VoiceAgent] Audio element error', e);
           setIsSpeaking(false);
           lastAudioErrorRef.current = Date.now();
+
+          // Activate safe mode on first audio error (disables Continuous Mode for the rest of the session)
+          if (!hasHadAudioErrorRef.current) {
+            hasHadAudioErrorRef.current = true;
+            setSafeModeActive(true);
+            setContinuousMode(false); // Force disable Continuous Mode
+          }
 
           // Very passive cleanup — avoid .load() or heavy DOM ops that can trigger more errors / removeChild issues
           const audioEl = audioRef.current;
