@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
-
-// Transform cal.diy DB columns to frontend-friendly format
-function transformEventType(et: any) {
-  if (!et) return et;
-  let location = "google-meet";
-  if (Array.isArray(et.locations) && et.locations.length > 0) {
-    location = et.locations[0]?.type || "google-meet";
-  }
-  return {
-    ...et,
-    location,
-    isActive: !et.hidden,
-    bufferBefore: et.beforeEventBuffer ?? 0,
-    bufferAfter: et.afterEventBuffer ?? 0,
-  };
-}
 
 // GET — Fetch a single event type by id
 export async function GET(
@@ -26,22 +11,25 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const { data: user } = await supabase.from("users").select("id").eq("email", "info@planxo.ca").single();
-    if (!user) return apiError("User not found", 404);
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const { data, error } = await supabase
-      .from("EventType")
-      .select("*")
-      .eq("id", id)
-      .eq("userId", user.id)
-      .single();
+    const eventType = await prisma.eventType.findUnique({
+      where: { id: id }
+    });
 
-    if (error) return apiError(error.message, 500);
-    if (!data) return apiError("Event type not found", 404);
+    if (!eventType || eventType.userId !== user.id || !eventType.isActive) {
+      return NextResponse.json({ error: "Event type not found" }, { status: 404 });
+    }
 
-    return NextResponse.json({ status: "success", data: transformEventType(data) });
-  } catch (e: any) {
-    return apiError(e.message || "Internal error", 500);
+    return NextResponse.json({ status: "success", data: eventType });
+  } catch (error: any) {
+    console.error("Error fetching event type:", error);
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
 
@@ -52,85 +40,70 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
 
-    const { data: user } = await supabase.from("users").select("id").eq("email", "info@planxo.ca").single();
-    if (!user) return apiError("User not found", 404);
-
-    const updates: any = { updatedAt: new Date().toISOString() };
-    const fieldMap: Record<string, string> = {
-      title: "title",
-      slug: "slug",
-      description: "description",
-      length: "length",
-      price: "price",
-      currency: "currency",
-      bufferBefore: "beforeEventBuffer",
-      bufferAfter: "afterEventBuffer",
-      hidden: "hidden",
-      // New advanced fields — accept both camelCase frontend and DB names
-      beforeEventBuffer: "beforeEventBuffer",
-      afterEventBuffer: "afterEventBuffer",
-      minimumBookingNotice: "minimumBookingNotice",
-      requiresConfirmation: "requiresConfirmation",
-      scheduleId: "scheduleId",
-    };
-
-    for (const [frontendField, dbField] of Object.entries(fieldMap)) {
-      if (body[frontendField] !== undefined) updates[dbField] = body[frontendField];
+    // Verify ownership
+    const existing = await prisma.eventType.findUnique({ where: { id } });
+    if (!existing || existing.userId !== user.id) {
+      return NextResponse.json({ error: "Event type not found" }, { status: 404 });
     }
 
-    // Handle location → locations
-    if (body.location !== undefined) {
-      updates.locations = [{ type: body.location }];
+    const updates: any = {};
+    const allowedFields = ["title", "slug", "description", "length", "location", "color", "price", "currency", "bufferBefore", "bufferAfter", "maxPerDay", "isActive"];
+    
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updates[field] = body[field];
+      }
     }
 
-    // Handle isActive → hidden (inverse)
-    if (body.isActive !== undefined) {
-      updates.hidden = !body.isActive;
-    }
+    const eventType = await prisma.eventType.update({
+      where: { id },
+      data: updates
+    });
 
-    const { data, error } = await supabase
-      .from("EventType")
-      .update(updates)
-      .eq("id", id)
-      .eq("userId", user.id)
-      .select()
-      .single();
-
-    if (error) return apiError(error.message, 500);
-    if (!data) return apiError("Event type not found", 404);
-
-    return NextResponse.json({ status: "success", data: transformEventType(data) });
-  } catch (e: any) {
-    return apiError(e.message || "Internal error", 500);
+    return NextResponse.json({ status: "success", data: eventType });
+  } catch (error: any) {
+    console.error("Error updating event type:", error);
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
 
-// DELETE — Remove event type (soft delete via hidden=true)
+// DELETE — Remove event type (soft delete via isActive=false)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const { data: user } = await supabase.from("users").select("id").eq("email", "info@planxo.ca").single();
-    if (!user) return apiError("User not found", 404);
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const { error } = await supabase
-      .from("EventType")
-      .update({ hidden: true, updatedAt: new Date().toISOString() })
-      .eq("id", id)
-      .eq("userId", user.id);
+    // Verify ownership
+    const existing = await prisma.eventType.findUnique({ where: { id } });
+    if (!existing || existing.userId !== user.id) {
+      return NextResponse.json({ error: "Event type not found" }, { status: 404 });
+    }
 
-    if (error) return apiError(error.message, 500);
+    await prisma.eventType.update({
+      where: { id },
+      data: { isActive: false }
+    });
 
     return NextResponse.json({ status: "success", data: { id } });
-  } catch (e: any) {
-    return apiError(e.message || "Internal error", 500);
+  } catch (error: any) {
+    console.error("Error deleting event type:", error);
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
-}
-
-function apiError(message: string, status: number) {
-  return NextResponse.json({ status: "error", error: { message } }, { status });
 }

@@ -1,80 +1,94 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
-
-// Transform cal.diy DB columns to frontend-friendly format
-function transformEventType(et: any) {
-  if (!et) return et;
-  let location = "google-meet";
-  if (Array.isArray(et.locations) && et.locations.length > 0) {
-    location = et.locations[0]?.type || "google-meet";
-  }
-  return {
-    ...et,
-    location,
-    isActive: !et.hidden,
-    bufferBefore: et.beforeEventBuffer ?? 0,
-    bufferAfter: et.afterEventBuffer ?? 0,
-  };
-}
 
 // POST — Create event type
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
-    const { data: user } = await supabase.from("users").select("id").eq("email", "info@planxo.ca").single();
-    if (!user) return apiError("User not found", 404);
 
-    const now = new Date().toISOString();
-    const locType = body.location || "integrations:google:meet";
+    // Ensure User exists in Prisma
+    const email = user.email || "";
+    const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split("@")[0] || "User";
+    const username = `${email.split("@")[0]}-${user.id.slice(0,4)}`;
 
-    const { data, error } = await supabase.from("EventType").insert({
-      userId: user.id,
-      title: body.title || "Nouveau rendez-vous",
-      slug: body.slug || `rdv-${Date.now()}`,
-      description: body.description || "",
-      length: body.length || 30,
-      locations: [{ type: locType }],
-      price: body.price || 0,
-      currency: body.currency || "cad",
-      beforeEventBuffer: body.bufferBefore ?? 0,
-      afterEventBuffer: body.bufferAfter ?? 0,
-      hidden: false,
-      createdAt: now,
-      updatedAt: now,
-    }).select().single();
+    await prisma.user.upsert({
+      where: { id: user.id },
+      update: {},
+      create: {
+        id: user.id,
+        email: email,
+        name: name,
+        username: username,
+      }
+    });
 
-    if (error) return apiError(error.message, 500);
-    return NextResponse.json({ status: "success", data: transformEventType(data) }, { status: 201 });
-  } catch (e: any) {
-    return apiError(e.message || "Internal error", 500);
+    const eventType = await prisma.eventType.create({
+      data: {
+        userId: user.id,
+        title: body.title || "Nouveau rendez-vous",
+        slug: body.slug || `rdv-${Date.now()}`,
+        description: body.description || "",
+        length: body.length || 30,
+        location: body.location || "google-meet",
+        color: body.color || "#242424",
+        price: body.price || 0,
+        currency: body.currency || "cad",
+        bufferBefore: body.bufferBefore ?? 0,
+        bufferAfter: body.bufferAfter ?? 0,
+        maxPerDay: body.maxPerDay ?? null,
+        isActive: true,
+      }
+    });
+
+    return NextResponse.json({ status: "success", data: eventType }, { status: 201 });
+  } catch (error: any) {
+    console.error("Error creating event type:", error);
+    return NextResponse.json({ 
+      error: error.message || "Internal Server Error",
+      details: error.toString()
+    }, { status: 500 });
   }
 }
 
 // GET — List event types (optionally filter by userId)
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get("userId");
+  try {
+    const { searchParams } = new URL(request.url);
+    const queryUserId = searchParams.get("userId");
 
-  let query = supabase.from("EventType").select("*").eq("hidden", false).order("createdAt", { ascending: false });
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-  if (userId) {
-    query = query.eq("userId", userId);
-  } else {
-    const { data: user } = await supabase.from("users").select("id").eq("email", "info@planxo.ca").single();
-    if (!user) return apiError("User not found", 404);
-    query = query.eq("userId", user.id);
+    const targetUserId = queryUserId || user?.id;
+    
+    if (!targetUserId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const eventTypes = await prisma.eventType.findMany({
+      where: { 
+        userId: targetUserId,
+        isActive: true 
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return NextResponse.json({ status: "success", data: eventTypes });
+  } catch (error: any) {
+    console.error("Error fetching event types:", error);
+    return NextResponse.json({ 
+      error: error.message || "Internal Server Error",
+      details: error.toString()
+    }, { status: 500 });
   }
-
-  const { data, error } = await query;
-  if (error) return apiError(error.message, 500);
-  return NextResponse.json({
-    status: "success",
-    data: (data || []).map(transformEventType),
-  });
-}
-
-function apiError(message: string, status: number) {
-  return NextResponse.json({ status: "error", error: { message } }, { status });
 }
