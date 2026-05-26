@@ -73,7 +73,7 @@ export function VoiceSchedulingAgent({
   const [hasSpokenInitial, setHasSpokenInitial] = useState(false);
 
   // Refs
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);           // React-controlled audio element
   const currentAudioUrlRef = useRef<string | null>(null);
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -263,12 +263,21 @@ export function VoiceSchedulingAgent({
   const getTTSLanguage = (langCode: string): 'fr' | 'en' => langCode.startsWith('fr') ? 'fr' : 'en';
 
   const stopSpeaking = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    const audioEl = audioRef.current;
+    if (audioEl) {
+      try {
+        audioEl.pause();
+        audioEl.currentTime = 0;
+        // Clear src to help browser release resources cleanly
+        audioEl.src = '';
+      } catch (e) {
+        console.warn('Audio stop warning:', e);
+      }
     }
     if (currentAudioUrlRef.current) {
-      URL.revokeObjectURL(currentAudioUrlRef.current);
+      try {
+        URL.revokeObjectURL(currentAudioUrlRef.current);
+      } catch {}
       currentAudioUrlRef.current = null;
     }
     setIsSpeaking(false);
@@ -276,6 +285,12 @@ export function VoiceSchedulingAgent({
 
   const speak = useCallback(async (text: string) => {
     if (!selectedVoice || !text.trim()) return;
+
+    const audioEl = audioRef.current;
+    if (!audioEl) {
+      console.warn('Audio element not ready yet');
+      return;
+    }
 
     stopSpeaking();
     setIsSpeaking(true);
@@ -299,22 +314,26 @@ export function VoiceSchedulingAgent({
       const url = URL.createObjectURL(blob);
       currentAudioUrlRef.current = url;
 
-      const audio = new Audio(url);
-      audio.volume = volume;
-      audioRef.current = audio;
+      // Use the React-managed <audio> element instead of new Audio()
+      // This dramatically reduces "removeChild" / DOM lifecycle crashes
+      audioEl.src = url;
+      audioEl.volume = volume;
 
-      audio.onended = () => {
+      const handleEnded = () => {
         setIsSpeaking(false);
+
         if (currentAudioUrlRef.current) {
-          URL.revokeObjectURL(currentAudioUrlRef.current);
+          try { URL.revokeObjectURL(currentAudioUrlRef.current); } catch {}
           currentAudioUrlRef.current = null;
         }
-        // Continuous mode - use refs to avoid stale state
+
+        audioEl.onended = null; // prevent duplicate handlers
+
+        // Continuous mode
         if (continuousModeRef.current && 
             !isListeningRef.current && 
             !isProcessingRef.current &&
             recognitionRef.current) {
-          // Small delay + extra guard
           setTimeout(() => {
             if (!isListeningRef.current && !isProcessingRef.current) {
               startListening();
@@ -323,18 +342,23 @@ export function VoiceSchedulingAgent({
         }
       };
 
-      await audio.play();
+      audioEl.onended = handleEnded;
+
+      await audioEl.play();
     } catch (err: any) {
       console.error('Speak error (ElevenLabs TTS):', err);
       setIsSpeaking(false);
-      
-      // Show helpful error to user
+
+      if (currentAudioUrlRef.current) {
+        try { URL.revokeObjectURL(currentAudioUrlRef.current); } catch {}
+        currentAudioUrlRef.current = null;
+      }
+
       if (err.message?.includes('quota') || err.message?.includes('429')) {
         setSpeechError('ElevenLabs quota reached for this voice. Try another voice or wait a bit.');
       } else {
         setSpeechError('Could not generate voice. The AI will continue in text only for now.');
       }
-      // Clear error after a few seconds
       setTimeout(() => setSpeechError(''), 4500);
     }
   }, [selectedVoice, selectedLang, volume, mode, stopSpeaking]);
@@ -750,6 +774,16 @@ export function VoiceSchedulingAgent({
           Envoyer
         </button>
       </form>
+
+      {/* React-managed <audio> element — prevents "removeChild" DOM crashes during rapid play/stop */}
+      <audio
+        ref={audioRef}
+        style={{ display: 'none' }}
+        onError={() => {
+          setIsSpeaking(false);
+          console.warn('[VoiceAgent] Audio element error');
+        }}
+      />
     </div>
   );
 }
