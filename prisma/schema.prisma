@@ -48,11 +48,13 @@ model EventType {
   currency     String   @default("cad")
   isPrivate    Boolean  @default(false)
   meetingUrl   String?
+  scheduleId   String?
   createdAt    DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   user     User      @relation(fields: [userId], references: [id])
   bookings Booking[]
+  schedule Schedule? @relation(fields: [scheduleId], references: [id])
 
   @@index([userId])
   @@index([slug])
@@ -70,6 +72,7 @@ model Schedule {
 
   user      User          @relation(fields: [userId], references: [id])
   intervals Availability[]
+  eventTypes EventType[]
 
   @@index([userId])
   @@schema("public")

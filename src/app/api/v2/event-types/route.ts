@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
         bufferBefore: body.bufferBefore ?? 0,
         bufferAfter: body.bufferAfter ?? 0,
         maxPerDay: body.maxPerDay ?? null,
+        scheduleId: body.scheduleId ? String(body.scheduleId) : null,
         isActive: true,
       }
     });

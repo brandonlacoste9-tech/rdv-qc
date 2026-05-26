@@ -56,7 +56,7 @@ export async function PATCH(
     }
 
     const updates: any = {};
-    const allowedFields = ["title", "slug", "description", "length", "location", "color", "price", "currency", "bufferBefore", "bufferAfter", "maxPerDay", "isActive"];
+    const allowedFields = ["title", "slug", "description", "length", "location", "color", "price", "currency", "bufferBefore", "bufferAfter", "maxPerDay", "isActive", "scheduleId"];
     
     for (const field of allowedFields) {
       if (body[field] !== undefined) {

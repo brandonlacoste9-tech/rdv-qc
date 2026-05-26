@@ -124,7 +124,7 @@ export default function EventTypesPage() {
       bufferBefore: form.bufferBefore,
       bufferAfter: form.bufferAfter,
       maxPerDay: form.maxPerDay ? parseInt(form.maxPerDay) : null,
-      scheduleId: form.scheduleId !== "" ? Number(form.scheduleId) : null,
+      scheduleId: form.scheduleId !== "" ? String(form.scheduleId) : null,
     };
 
     const res = await fetch(url, {
@@ -470,6 +470,31 @@ export default function EventTypesPage() {
                       outline: "none",
                     }}
                   />
+                </label>
+
+                {/* Schedule */}
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Custom Schedule</span>
+                  <select
+                    value={form.scheduleId || ""}
+                    onChange={(e) => set("scheduleId", e.target.value)}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: `1px solid ${colors.border}`,
+                      background: colors.bg,
+                      color: colors.text,
+                      fontSize: 14,
+                      outline: "none",
+                    }}
+                  >
+                    <option value="">Use Default Availability</option>
+                    {schedules.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 {/* Description */}
