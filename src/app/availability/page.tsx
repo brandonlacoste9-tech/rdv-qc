@@ -521,9 +521,12 @@ export default function AvailabilityPage() {
                               borderRadius: 6,
                               border: `1px solid ${colors.border}`,
                               background: colors.bg,
-                              color: colors.text,
-                              fontSize: 12,
+                              color: colors.accent,
+                              fontSize: 14,
+                              fontWeight: 600,
                               outline: "none",
+                              colorScheme: "dark",
+                              cursor: "pointer",
                             }}
                           />
                           <span style={{ color: colors.textMuted, fontSize: 12 }}>–</span>
@@ -536,9 +539,12 @@ export default function AvailabilityPage() {
                               borderRadius: 6,
                               border: `1px solid ${colors.border}`,
                               background: colors.bg,
-                              color: colors.text,
-                              fontSize: 12,
+                              color: colors.accent,
+                              fontSize: 14,
+                              fontWeight: 600,
                               outline: "none",
+                              colorScheme: "dark",
+                              cursor: "pointer",
                             }}
                           />
                           <button
