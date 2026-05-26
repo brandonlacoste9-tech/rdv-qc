@@ -16,13 +16,24 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { scheduleName, timezone, intervals } = body;
 
-    // 1. Update user timezone
-    if (timezone) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { timeZone: timezone },
-      });
-    }
+    // 1. Ensure user exists and update timezone
+    const email = user.email || "";
+    const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split("@")[0] || "User";
+    const username = `${email.split("@")[0]}-${user.id.slice(0,4)}`;
+
+    await prisma.user.upsert({
+      where: { id: user.id },
+      update: {
+        ...(timezone ? { timeZone: timezone } : {})
+      },
+      create: {
+        id: user.id,
+        email: email,
+        name: name,
+        username: username,
+        timeZone: timezone || "America/Toronto"
+      }
+    });
 
     // 2. Get or create default schedule
     let schedule = await prisma.schedule.findFirst({
