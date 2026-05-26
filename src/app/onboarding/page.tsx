@@ -124,6 +124,16 @@ export default function OnboardingPage() {
       background: "#1a1208", fontFamily: "'Inter', system-ui, sans-serif",
       position: "relative", zIndex: 1,
     }}>
+      {/* Language Toggle Badge */}
+      <div style={{
+        position: "absolute", top: 24, right: 24,
+        background: "rgba(200,169,110,0.1)", border: "1px solid rgba(200,169,110,0.2)",
+        color: "#c8a96e", fontSize: 12, fontWeight: 700, padding: "6px 10px",
+        borderRadius: 8, cursor: "pointer", letterSpacing: 0.5
+      }}>
+        EN
+      </div>
+
       <div style={{
         background: "rgba(255,255,255,0.04)", borderRadius: 20, padding: "48px 40px",
         width: "100%", maxWidth: 480,
