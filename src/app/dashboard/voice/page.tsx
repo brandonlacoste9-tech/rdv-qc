@@ -30,6 +30,12 @@ export default function VoiceDashboard() {
     avgDuration: 0,
     successRate: 0,
   });
+
+  // ElevenLabs voice state
+  const [voices, setVoices] = useState<any[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState('');
+  const [testText, setTestText] = useState("Bonjour, je suis l'assistant vocal de Planxo. Comment puis-je vous aider aujourd'hui ?");
+
   const { theme } = useTheme();
   const dark = theme !== "default";
   const tColors = dark ? {
@@ -43,6 +49,7 @@ export default function VoiceDashboard() {
   useEffect(() => {
     fetchCalls();
     fetchCredits();
+    fetchVoices();
   }, []);
 
   async function fetchCredits() {
@@ -79,6 +86,43 @@ export default function VoiceDashboard() {
       console.error('Failed to fetch calls:', err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Fetch ElevenLabs voices
+  async function fetchVoices() {
+    try {
+      const res = await fetch('/api/v2/elevenlabs/voices');
+      if (res.ok) {
+        const data = await res.json();
+        setVoices(data.voices || []);
+        if (data.voices?.length > 0 && !selectedVoice) {
+          setSelectedVoice(data.voices[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch voices:', err);
+    }
+  }
+
+  async function testVoice() {
+    if (!selectedVoice) return;
+    try {
+      const res = await fetch('/api/v2/elevenlabs/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voiceId: selectedVoice, text: testText })
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.play();
+      } else {
+        alert('Erreur TTS');
+      }
+    } catch (err) {
+      console.error('TTS test failed:', err);
     }
   }
 
