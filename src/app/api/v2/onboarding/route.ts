@@ -38,6 +38,7 @@ export async function PUT(request: NextRequest) {
     });
 
     // 2. Check and Create Default Schedule
+    let schedId = "";
     const existingSched = await prisma.schedule.findFirst({
       where: { userId: user.id }
     });
@@ -51,10 +52,10 @@ export async function PUT(request: NextRequest) {
           isDefault: true,
         }
       });
+      schedId = newSchedule.id;
 
       // Create Availability (Mon-Fri, 9-5)
       const availabilityData = [1, 2, 3, 4, 5].map((day) => ({
-        userId: user.id,
         scheduleId: newSchedule.id,
         dayOfWeek: day,
         startTime: "09:00:00",
@@ -65,6 +66,8 @@ export async function PUT(request: NextRequest) {
       await prisma.availability.createMany({
         data: availabilityData
       });
+    } else {
+      schedId = existingSched.id;
     }
 
     // 3. Check and Create Starter Event Types
@@ -104,6 +107,7 @@ export async function PUT(request: NextRequest) {
         data: starterTypes.map((et) => ({
           ...et,
           userId: user.id,
+          scheduleId: schedId,
           isActive: true,
           isPrivate: false,
           currency: "cad",
