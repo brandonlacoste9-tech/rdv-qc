@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { useTheme } from "@/lib/theme";
 import { Copy, Check, ExternalLink } from "lucide-react";
 
-type Tab = "profile" | "calendars" | "conferencing" | "api" | "appearance";
+type Tab = "profile" | "calendars" | "conferencing" | "api" | "appearance" | "workflows";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("profile");
@@ -69,6 +69,7 @@ export default function SettingsPage() {
     { key: "profile", label: "Profil", icon: "👤" },
     { key: "calendars", label: "Calendriers", icon: "📅" },
     { key: "conferencing", label: "Visioconférence", icon: "📹" },
+    { key: "workflows", label: "Workflows & Rappels", icon: "⚡" },
     { key: "api", label: "API & Dev", icon: "🔑" },
     { key: "appearance", label: "Apparence", icon: "🎨" },
   ];
@@ -125,6 +126,7 @@ export default function SettingsPage() {
         {tab === "conferencing" && (
           <ConferencingSection colors={colors} conferencing={conferencing} saveConferencing={saveConferencing} />
         )}
+        {tab === "workflows" && <WorkflowsSection colors={colors} user={user} />}
         {tab === "api" && <APISection colors={colors} eventTypes={eventTypes} username={user?.username} />}
         {tab === "appearance" && <AppearanceSection colors={colors} />}
 
@@ -423,6 +425,142 @@ function AppearanceSection({ colors }: any) {
             }} />
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkflowsSection({ colors, user }: any) {
+  const [voices, setVoices] = useState<any[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState(true);
+  const [selectedVoice, setSelectedVoice] = useState("pNInz6obpgDQGcFmaJgB"); // Adam voice by default if exists
+  const [reminderText, setReminderText] = useState(`Bonjour ! C'est l'assistant vocal de ${user?.name || 'Planxo'}. Je vous appelle pour vous rappeler notre rendez-vous prévu pour bientôt. À très vite !`);
+  const [generating, setGenerating] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/v2/elevenlabs/voices")
+      .then(res => res.json())
+      .then(data => {
+        if (data.voices) {
+          setVoices(data.voices);
+          if (data.voices.length > 0) setSelectedVoice(data.voices[0].id);
+        }
+      })
+      .finally(() => setLoadingVoices(false));
+  }, []);
+
+  const handlePreview = async () => {
+    setGenerating(true);
+    setAudioUrl(null);
+    try {
+      const res = await fetch("/api/v2/elevenlabs/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: reminderText, voiceId: selectedVoice })
+      });
+
+      if (!res.ok) throw new Error("Génération échouée");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+      
+      const audio = new Audio(url);
+      audio.play();
+    } catch (e) {
+      alert("Erreur de génération. Vérifiez la clé API.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div style={{ animation: "fadeIn 0.3s ease" }}>
+      <h1 style={{ fontFamily: "'Cal Sans',sans-serif", fontSize: 24, fontWeight: 700, marginBottom: 6, color: colors.text }}>Workflows & Rappels</h1>
+      <p style={{ fontSize: 14, color: colors.textMuted, marginBottom: 28 }}>Configurez vos notifications automatisées (Courriel, SMS, Appels IA).</p>
+      
+      {/* Standard Reminders */}
+      <div style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border}`, background: colors.cardBg, marginBottom: 24 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: colors.text, margin: "0 0 16px" }}>Rappels de base</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: colors.text }}>Courriel 24h avant</div>
+              <div style={{ fontSize: 13, color: colors.textMuted }}>Envoie un courriel de rappel au participant.</div>
+            </div>
+            <input type="checkbox" defaultChecked style={{ width: 18, height: 18, accentColor: colors.accent }} />
+          </label>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 500, color: colors.text }}>SMS 2h avant (Nécessite Twilio)</div>
+              <div style={{ fontSize: 13, color: colors.textMuted }}>Envoie un message texte directement sur le cellulaire.</div>
+            </div>
+            <input type="checkbox" style={{ width: 18, height: 18, accentColor: colors.accent }} />
+          </label>
+        </div>
+      </div>
+
+      {/* ElevenLabs Integration */}
+      <div style={{
+        padding: 24, borderRadius: 16, border: `1px solid ${colors.accent}40`,
+        background: `linear-gradient(145deg, ${colors.cardBg}, ${colors.bg})`,
+        boxShadow: `0 8px 32px ${colors.accent}10`
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", border: "1px solid #333" }}>
+            |||
+          </div>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: colors.text, margin: 0 }}>Rappels Vocaux IA (Propulsé par ElevenLabs)</h3>
+        </div>
+        <p style={{ fontSize: 14, color: colors.textMuted, marginBottom: 20 }}>Générez des appels téléphoniques automatisés avec des voix ultra-réalistes.</p>
+        
+        {loadingVoices ? (
+          <div style={{ fontSize: 14, color: colors.textMuted }}>Chargement des voix...</div>
+        ) : (
+          <div style={{ display: "grid", gap: 16 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, display: "block", marginBottom: 6 }}>Sélectionner une voix</label>
+              <select
+                value={selectedVoice} onChange={e => setSelectedVoice(e.target.value)}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text, fontSize: 14, outline: "none" }}
+              >
+                {voices.map(v => (
+                  <option key={v.id} value={v.id}>{v.name} ({v.category})</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, display: "block", marginBottom: 6 }}>Script de l'appel</label>
+              <textarea
+                value={reminderText} onChange={e => setReminderText(e.target.value)}
+                rows={4}
+                style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${colors.border}`, background: colors.bg, color: colors.text, fontSize: 14, outline: "none", resize: "vertical" }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <button
+                onClick={handlePreview} disabled={generating || !reminderText}
+                style={{
+                  background: colors.accent, color: colors.accentText, border: "none",
+                  borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600,
+                  cursor: generating ? "wait" : "pointer", opacity: generating ? 0.7 : 1, transition: "opacity .2s",
+                  display: "flex", alignItems: "center", gap: 8
+                }}
+              >
+                {generating ? "Génération en cours..." : "▶️ Écouter l'aperçu"}
+              </button>
+              
+              {audioUrl && (
+                <a href={audioUrl} download="rappel-vocal.mp3" style={{ fontSize: 13, color: colors.accent, textDecoration: "none", fontWeight: 500 }}>
+                  ↓ Télécharger (.mp3)
+                </a>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
