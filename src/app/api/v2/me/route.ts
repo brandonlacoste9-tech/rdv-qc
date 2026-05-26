@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       ...user,
+      name: user.name || authUser.user_metadata?.full_name || authUser.user_metadata?.name || user.username || authUser.email?.split("@")[0] || "User",
       eventTypes,
       schedules,
     });
