@@ -304,7 +304,73 @@ export default function VoiceDashboard() {
         </div>
       </div>
 
-      {/* Settings Section */}
+      {/* ElevenLabs Voice Settings */}
+      <div style={{ 
+        marginTop: 32, 
+        background: tColors.cardBg, 
+        border: `1px solid ${tColors.border}`, 
+        borderRadius: 12, 
+        padding: 24 
+      }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Voix ElevenLabs (AI Tab)</h2>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: tColors.textMuted, display: 'block', marginBottom: 8 }}>
+              Sélectionner une voix
+            </label>
+            <select 
+              value={selectedVoice} 
+              onChange={e => setSelectedVoice(e.target.value)}
+              style={{ 
+                width: '100%', padding: '10px 14px', borderRadius: 8, 
+                border: `1px solid ${tColors.border}`, background: tColors.bg, 
+                color: tColors.text, fontSize: 14 
+              }}
+            >
+              {voices.length === 0 && <option>Chargement des voix...</option>}
+              {voices.map(v => (
+                <option key={v.id} value={v.id}>{v.name} ({v.category})</option>
+              ))}
+            </select>
+            <button 
+              onClick={testVoice}
+              style={{ 
+                marginTop: 12, padding: '10px 20px', 
+                background: 'linear-gradient(135deg, #c8a96e, #a07840)', 
+                color: '#1a1208', border: 'none', borderRadius: 8, 
+                fontWeight: 600, cursor: 'pointer', fontSize: 14 
+              }}
+            >
+              ▶ Tester la voix
+            </button>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: tColors.textMuted, display: 'block', marginBottom: 8 }}>
+              Script de test
+            </label>
+            <textarea 
+              value={testText} 
+              onChange={e => setTestText(e.target.value)}
+              rows={3}
+              style={{ 
+                width: '100%', padding: '10px 14px', borderRadius: 8, 
+                border: `1px solid ${tColors.border}`, background: tColors.bg, 
+                color: tColors.text, fontSize: 14, resize: 'vertical' 
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16, padding: 16, background: dark ? 'rgba(200,169,110,0.1)' : '#fef3c7', borderRadius: 8 }}>
+          <p style={{ fontSize: 13, color: dark ? '#c8a96e' : '#92400e', margin: 0 }}>
+            💡 Les voix sont synchronisées avec l'API ElevenLabs. La sélection est utilisée pour les appels vocaux et rappels IA.
+          </p>
+        </div>
+      </div>
+
+      {/* Original Configuration Section */}
       <div style={{ 
         marginTop: 32, 
         background: tColors.cardBg, 
@@ -315,13 +381,13 @@ export default function VoiceDashboard() {
         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Configuration</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
           <SettingItem label="Numéro de téléphone" value="Non configuré" tColors={tColors} />
-          <SettingItem label="Voix" value="Céline (Français Québec)" tColors={tColors} />
-          <SettingItem label="Heures d&apos;ouverture" value="Lun-Ven 9h-17h" tColors={tColors} />
+          <SettingItem label="Voix" value={selectedVoice ? voices.find(v => v.id === selectedVoice)?.name || 'Céline' : 'Céline (Français Québec)'} tColors={tColors} />
+          <SettingItem label="Heures d'ouverture" value="Lun-Ven 9h-17h" tColors={tColors} />
           <SettingItem label="Tarification" value="~$0.15/minute" tColors={tColors} />
         </div>
         <div style={{ marginTop: 16, padding: 16, background: dark ? 'rgba(200,169,110,0.1)' : '#fef3c7', borderRadius: 8 }}>
           <p style={{ fontSize: 13, color: dark ? '#c8a96e' : '#92400e', margin: 0 }}>
-            💡 Pour activer l&apos;agent vocal, consultez le{' '}
+            💡 Pour activer l'agent vocal, consultez le{' '}
             <a href="/docs/VOICE_AGENT_SETUP.md" style={{ color: dark ? '#c8a96e' : '#92400e', fontWeight: 600 }}>
               guide de configuration
             </a>
