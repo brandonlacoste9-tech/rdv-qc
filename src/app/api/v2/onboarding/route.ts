@@ -78,8 +78,8 @@ export async function PUT(request: NextRequest) {
     if (!existingEvents) {
       const starterTypes = [
         {
-          title: "Discovery Call",
-          slug: `discovery-call-${user.id.substring(0, 6)}`,
+          title: "Appel de découverte",
+          slug: `appel-decouverte-${user.id.substring(0, 6)}`,
           length: 15,
           location: "google-meet",
           color: "#c8a96e",
@@ -94,8 +94,8 @@ export async function PUT(request: NextRequest) {
           price: 0,
         },
         {
-          title: "Follow-up",
-          slug: `follow-up-${user.id.substring(0, 6)}`,
+          title: "Suivi",
+          slug: `suivi-${user.id.substring(0, 6)}`,
           length: 60,
           location: "google-meet",
           color: "#2563eb",
