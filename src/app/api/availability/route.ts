@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -12,63 +13,57 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Use admin client for database operations to bypass RLS/permission issues
-    const adminClient = await createAdminClient();
-
     const body = await request.json();
     const { scheduleName, timezone, intervals } = body;
 
     // 1. Update user timezone
     if (timezone) {
-      await adminClient.from("User").update({ timeZone: timezone }).eq("id", user.id);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { timeZone: timezone },
+      });
     }
 
     // 2. Get or create default schedule
-    let { data: schedule, error: fetchError } = await adminClient
-      .from("Schedule")
-      .select("id")
-      .eq("userId", user.id)
-      .eq("isDefault", true)
-      .maybeSingle();
-
-    if (fetchError) throw fetchError;
+    let schedule = await prisma.schedule.findFirst({
+      where: { userId: user.id, isDefault: true },
+    });
 
     if (!schedule) {
-      const { data: newSchedule, error: createError } = await adminClient
-        .from("Schedule")
-        .insert({
+      schedule = await prisma.schedule.create({
+        data: {
           userId: user.id,
           name: scheduleName || "Working Hours",
           timeZone: timezone || "America/Toronto",
           isDefault: true
-        })
-        .select("id")
-        .single();
-      
-      if (createError) throw createError;
-      schedule = newSchedule;
+        }
+      });
     } else if (scheduleName || timezone) {
-      const updateData: any = {};
-      if (scheduleName) updateData.name = scheduleName;
-      if (timezone) updateData.timeZone = timezone;
-      await adminClient.from("Schedule").update(updateData).eq("id", schedule.id);
+      schedule = await prisma.schedule.update({
+        where: { id: schedule.id },
+        data: {
+          name: scheduleName || schedule.name,
+          timeZone: timezone || schedule.timeZone,
+        }
+      });
     }
 
     // 3. Delete old availability intervals
-    await adminClient.from("Availability").delete().eq("scheduleId", schedule.id);
+    await prisma.availability.deleteMany({
+      where: { scheduleId: schedule.id },
+    });
 
     // 4. Insert new intervals
     if (intervals && intervals.length > 0) {
-      const { error: insertError } = await adminClient.from("Availability").insert(
-        intervals.map((i: any) => ({
-          scheduleId: schedule.id,
+      await prisma.availability.createMany({
+        data: intervals.map((i: any) => ({
+          scheduleId: schedule!.id,
           dayOfWeek: i.dayOfWeek,
           startTime: i.startTime,
           endTime: i.endTime,
           isActive: i.isActive ?? true
         }))
-      );
-      if (insertError) throw insertError;
+      });
     }
 
     return NextResponse.json({ status: "success" });
@@ -87,21 +82,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const adminClient = await createAdminClient();
-
-    const { data: schedule, error: fetchError } = await adminClient
-      .from("Schedule")
-      .select(`
-        id,
-        name,
-        timeZone,
-        intervals:Availability(*)
-      `)
-      .eq("userId", user.id)
-      .eq("isDefault", true)
-      .maybeSingle();
-
-    if (fetchError) throw fetchError;
+    const schedule = await prisma.schedule.findFirst({
+      where: { userId: user.id, isDefault: true },
+      include: { intervals: true }
+    });
 
     if (!schedule) {
       return NextResponse.json({ name: "Working Hours", timeZone: "America/Toronto", intervals: [] });
