@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { generateIcs } from './emails/ics';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -182,11 +183,29 @@ export async function sendBookingConfirmation(params: BookingConfirmationParams)
     </p>
   `;
 
+  const icsContent = generateIcs({
+    start: new Date(startTime),
+    end: new Date(endTime),
+    title: `Rendez-vous: ${eventTitle}`,
+    description: `Rendez-vous avec ${hostName}\\nLien: ${meetingUrl || "N/A"}`,
+    location: meetingUrl || "",
+    organizerName: hostName,
+    organizerEmail: "hello@planxo.ca",
+  });
+  
+  const icsBase64 = Buffer.from(icsContent).toString("base64");
+
   return resend.emails.send({
     from: 'Planxo <onboarding@resend.dev>',
     to,
     subject: `Confirmation : ${eventTitle} avec ${hostName}`,
     html: emailWrapper(content),
+    attachments: [
+      {
+        filename: "invite.ics",
+        content: icsBase64,
+      }
+    ]
   });
 }
 

@@ -76,7 +76,7 @@ export default function InteracInstructionWidget({
           
           <span className="block text-[10px] text-amber-500 font-bold uppercase tracking-wider mb-2">
             ⚠️ Message Obligatoire / Required Message
-          </span
+          </span>
           
           <div className="flex gap-2 items-center">
             <div className="flex-1 font-mono text-center font-bold text-2xl tracking-widest bg-zinc-900/90 text-amber-400 py-2 rounded-lg border border-zinc-800/80 select-all">
@@ -101,8 +101,8 @@ export default function InteracInstructionWidget({
         <span className="flex items-center gap-1">
           <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
           Traitement automatisé actif
-        </span
-      </div}
+        </span>
+      </div>
     </div>
   );
 }
