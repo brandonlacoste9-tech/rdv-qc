@@ -48,7 +48,14 @@ export default function DashboardPage() {
       const user = await userRes.json();
       
       if (!user.username) {
-        window.location.href = "/onboarding";
+        // Auto-onboard if username is missing
+        await fetch("/api/v2/onboarding", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        // Re-fetch data after auto-onboarding
+        fetchData();
         return;
       }
       

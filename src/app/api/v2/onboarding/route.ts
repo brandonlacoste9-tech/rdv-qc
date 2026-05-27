@@ -13,11 +13,18 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { name, username, timeZone } = body;
+    let body = {};
+    try {
+      body = await request.json();
+    } catch (e) {
+      // Ignore empty body
+    }
+    const { name, username, timeZone } = body as any;
 
-    const finalName = name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "User";
-    const finalUsername = username || authUser.email?.split("@")[0] || `user-${authUser.id.substring(0, 6)}`;
+    const email = authUser.email || "";
+    const emailPrefix = email.split("@")[0] || "user";
+    const finalName = name || authUser.user_metadata?.full_name || authUser.user_metadata?.name || emailPrefix || "User";
+    const finalUsername = username || `${emailPrefix}-${authUser.id.substring(0, 4)}`;
     const finalTimeZone = timeZone || "America/Toronto";
 
     // 1. Upsert User

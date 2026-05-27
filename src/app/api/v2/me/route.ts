@@ -47,7 +47,13 @@ export async function GET(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ 
+        id: authUser.id,
+        email: authUser.email,
+        username: null, // This will trigger auto-onboarding on the client
+        eventTypes: [],
+        schedules: []
+      });
     }
 
     const eventTypes = await prisma.eventType.findMany({
