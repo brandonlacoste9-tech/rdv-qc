@@ -10,9 +10,17 @@ type CookieToSet = {
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Do not crash middleware if env is missing; let request continue.
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient<any>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -31,9 +39,12 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    // Avoid hard-failing middleware due to auth network/runtime issues.
+    return supabaseResponse;
+  }
 
   // Protected routes
 //  const protectedPaths = ["/dashboard", "/settings", "/availability", "/event-types"];
