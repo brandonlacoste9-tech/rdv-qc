@@ -58,17 +58,28 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
   }, [username, eventSlug, eventType, form.name]);
 
   useEffect(() => {
-    fetch(`/api/v2/me?username=${username}`)
+    fetch(`/api/v2/public-booking?username=${encodeURIComponent(username)}&eventSlug=${encodeURIComponent(eventSlug)}`)
       .then(r => r.json())
-      .then(user => {
-        if (user.error) { setError("User not found."); setLoading(false); return; }
-        return fetch(`/api/v2/event-types?userId=${user.id}`);
-      })
-      .then(r => r?.json())
       .then(data => {
-        const et = data?.data?.find((e: any) => e.slug === eventSlug);
-        if (et) setEventType({ ...et, user: { name: et.user?.name || username, username, timeZone: et.user?.timeZone || "America/Toronto" } });
-        else setError("Event type not found.");
+        if (data?.error) {
+          setError(data.error === "User not found" ? "User not found." : "Event type not found.");
+          return;
+        }
+
+        const et = data?.data;
+        if (!et) {
+          setError("Event type not found.");
+          return;
+        }
+
+        setEventType({
+          ...et,
+          user: {
+            name: et.user?.name || username,
+            username: et.user?.username || username,
+            timeZone: et.user?.timeZone || "America/Toronto",
+          },
+        });
       })
       .catch(() => setError("Error loading event."))
       .finally(() => setLoading(false));
