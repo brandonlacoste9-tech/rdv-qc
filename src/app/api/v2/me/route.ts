@@ -40,7 +40,13 @@ export async function GET(request: NextRequest) {
     // If queryUsername is provided, fetch public profile WITHOUT requiring auth
     if (queryUsername) {
       const publicUser = await prisma.user.findUnique({
-        where: { username: queryUsername }
+        where: { username: queryUsername },
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          timeZone: true,
+        },
       });
 
       if (!publicUser) {
@@ -147,7 +153,17 @@ export async function PATCH(req: Request) {
     
     const updatedUser = await prisma.user.update({
       where: { id: authUser.id },
-      data: updates
+      data: updates,
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        avatarUrl: true,
+        timeZone: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     
     return Response.json({ success: true, data: updatedUser });
