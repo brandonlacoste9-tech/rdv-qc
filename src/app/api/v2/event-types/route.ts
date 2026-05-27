@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
         email: email,
         name: name,
         username: username,
-      }
+      },
+      select: { id: true },
     });
 
     const eventType = await prisma.eventType.create({
