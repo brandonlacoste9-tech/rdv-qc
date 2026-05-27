@@ -2,7 +2,14 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+First, clone the repository:
+
+```bash
+gh repo clone brandonlacoste9-tech/planxo
+cd planxo
+```
+
+Then run the development server:
 
 ```bash
 npm run dev
