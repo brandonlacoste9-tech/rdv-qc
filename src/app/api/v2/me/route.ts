@@ -4,6 +4,13 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+function hasSupabaseAuthConfig() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -35,6 +42,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Otherwise, fetch authenticated user's full profile
+    if (!hasSupabaseAuthConfig()) {
+      return NextResponse.json(
+        { error: "Server misconfigured: missing Supabase environment variables" },
+        { status: 503 }
+      );
+    }
+
     const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
 
@@ -80,6 +94,13 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(req: Request) {
   try {
+    if (!hasSupabaseAuthConfig()) {
+      return Response.json(
+        { error: "Server misconfigured: missing Supabase environment variables" },
+        { status: 503 }
+      );
+    }
+
     const supabaseAuth = await createClient();
     const { data: { user: authUser } } = await supabaseAuth.auth.getUser();
     if (!authUser) return Response.json({ error: 'Unauthorized' }, { status: 401 });

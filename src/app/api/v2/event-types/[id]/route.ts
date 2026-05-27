@@ -4,12 +4,26 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+function hasSupabaseAuthConfig() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
 // GET — Fetch a single event type by id
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!hasSupabaseAuthConfig()) {
+      return NextResponse.json(
+        { error: "Server misconfigured: missing Supabase environment variables" },
+        { status: 503 }
+      );
+    }
+
     const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -39,6 +53,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!hasSupabaseAuthConfig()) {
+      return NextResponse.json(
+        { error: "Server misconfigured: missing Supabase environment variables" },
+        { status: 503 }
+      );
+    }
+
     const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -82,6 +103,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!hasSupabaseAuthConfig()) {
+      return NextResponse.json(
+        { error: "Server misconfigured: missing Supabase environment variables" },
+        { status: 503 }
+      );
+    }
+
     const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
