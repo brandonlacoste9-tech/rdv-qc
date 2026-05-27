@@ -170,7 +170,7 @@ async function handleConversationCompleted({
       startedAt: new Date(Date.now() - durationMs).toISOString(),
       endedAt: new Date().toISOString(),
       recordingDuration: durationSeconds
-    }).catch((err) => {
+    }).catch((err: any) => {
       // Ignore if voice_calls table doesn't exist
       console.warn("[ElevenLabs Webhooks] Could not log to voice_calls:", err.message);
     });

@@ -355,7 +355,7 @@ export default function AvailabilityPage() {
               <h2 style={{ fontSize: 15, fontWeight: 600, color: colors.text, margin: 0 }}>Weekly Hours</h2>
             </div>
 
-            <div style={{ divideY: `1px solid ${colors.border}` }}>
+            <div>
               {DAYS.map((day, idx) => (
                 <div
                   key={day}

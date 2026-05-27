@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTheme, themes, type ThemeName } from "@/lib/theme";
+import { useTheme, themes } from "@/lib/theme";
 
 interface VoiceCall {
   id: string;
@@ -39,8 +39,6 @@ export default function VoiceDashboard() {
 
   const { theme } = useTheme();
 
-  // Link to the new conversational voice agent
-  const voiceAgentUrl = '/dashboard/voice/agent';
   const dark = theme !== "default";
   const tColors = dark ? {
     bg: themes.cognac.bg, text: themes.cognac.text, textMuted: themes.cognac.textMuted,
@@ -54,6 +52,8 @@ export default function VoiceDashboard() {
     fetchCalls();
     fetchCredits();
     fetchVoices();
+    // Intentionally run once on mount to bootstrap dashboard data.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchCredits() {

@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let supabaseClient: any = null;
+
+function getSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  supabaseClient = createClient<any>(supabaseUrl, supabaseServiceRoleKey);
+  return supabaseClient;
+}
+
+const supabase: any = new Proxy({}, {
+  get(_target, prop) {
+    return getSupabaseClient()[prop as string];
+  },
+});
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,7 +42,7 @@ export async function GET(req: NextRequest) {
     results.workflows = {
       count: workflows?.length || 0,
       error: workflowError?.message || null,
-      data: workflows?.map(w => ({ id: w.id, name: w.name, user_id: w.user_id })) || []
+      data: workflows?.map((w: any) => ({ id: w.id, name: w.name, user_id: w.user_id })) || []
     };
 
     if (workflows && workflows.length > 0) {
@@ -74,7 +91,7 @@ export async function GET(req: NextRequest) {
       results.executions = {
         count: executions?.length || 0,
         error: execError?.message || null,
-        data: executions?.map(e => ({ id: e.id, status: e.status, booking_id: e.booking_id })) || []
+        data: executions?.map((e: any) => ({ id: e.id, status: e.status, booking_id: e.booking_id })) || []
       };
     }
 

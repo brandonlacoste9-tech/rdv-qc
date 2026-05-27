@@ -1,9 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let supabaseClient: any = null;
+
+function getSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  supabaseClient = createClient<any>(supabaseUrl, supabaseServiceRoleKey);
+  return supabaseClient;
+}
+
+const supabase: any = new Proxy({}, {
+  get(_target, prop) {
+    return getSupabaseClient()[prop as string];
+  },
+});
 
 export interface VoiceWorkflow {
   id: string;
@@ -92,7 +109,7 @@ export async function getWorkflows(userId: string): Promise<VoiceWorkflow[]> {
 
   if (error || !data) return [];
 
-  return data.map(w => ({
+  return data.map((w: any) => ({
     id: w.id,
     userId: w.user_id,
     name: w.name,
@@ -268,7 +285,7 @@ export async function getWorkflowExecutions(
 
   if (error || !data) return [];
 
-  return data.map(e => ({
+  return data.map((e: any) => ({
     id: e.id,
     workflowId: e.workflow_id,
     bookingId: e.booking_id,

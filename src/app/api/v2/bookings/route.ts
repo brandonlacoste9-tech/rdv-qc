@@ -127,7 +127,8 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Round-robin / collective: determine assigned user ──
-    let assignedUserId = userId;
+    let assignedUserId: string = String(userId || eventType.userId || "");
+    if (!assignedUserId) return apiError("Missing host user", 500);
     const schedulingType = eventType.schedulingType || "individual";
     if (schedulingType === "round_robin") {
       const teamIds = eventType.teamMembers || [userId];
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest) {
       const load: Record<string, number> = {};
       for (const id of teamIds) load[id] = 0;
       for (const b of recentBookings || []) load[b.userId] = (load[b.userId] || 0) + 1;
-      assignedUserId = teamIds.reduce((a, b) => (load[a] ?? 0) <= (load[b] ?? 0) ? a : b);
+      assignedUserId = teamIds.reduce((a: string, b: string) => (load[a] ?? 0) <= (load[b] ?? 0) ? a : b);
     }
 
     const isPaid = eventType.price === 0;

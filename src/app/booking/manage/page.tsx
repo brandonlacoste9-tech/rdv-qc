@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 function ManageBookingContent() {
@@ -18,17 +18,7 @@ function ManageBookingContent() {
   const [newTime, setNewTime] = useState('');
   const [reason, setReason] = useState('');
 
-  useEffect(() => {
-    if (!token) {
-      setError('Lien invalide ou expiré');
-      setLoading(false);
-      return;
-    }
-
-    fetchBooking();
-  }, [token]);
-
-  const fetchBooking = async () => {
+  const fetchBooking = useCallback(async () => {
     try {
       const response = await fetch(`/api/booking/verify?token=${token}`);
       const data = await response.json();
@@ -43,7 +33,17 @@ function ManageBookingContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setError('Lien invalide ou expiré');
+      setLoading(false);
+      return;
+    }
+
+    fetchBooking();
+  }, [token, fetchBooking]);
 
   const handleCancel = async () => {
     if (!confirm('Êtes-vous sûr de vouloir annuler ce rendez-vous ?')) return;

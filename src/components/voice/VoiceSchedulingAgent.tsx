@@ -1,4 +1,7 @@
 'use client';
+// This component coordinates browser speech APIs and timers with refs; exhaustive-deps
+// is intentionally relaxed to avoid unstable restart loops and duplicate side effects.
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ConversationManager, AITools } from '@/lib/voice/conversation';

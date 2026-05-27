@@ -99,7 +99,7 @@ export default function EventTypesPage() {
       bufferBefore: et.bufferBefore ?? 0,
       bufferAfter: et.bufferAfter ?? 0,
       maxPerDay: et.maxPerDay?.toString() || "",
-      scheduleId: et.scheduleId ?? "",
+      scheduleId: et.scheduleId != null ? String(et.scheduleId) : "",
     });
     setModal({ open: true, editing: et });
   };
@@ -258,7 +258,7 @@ export default function EventTypesPage() {
                     </div>
                     <div style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
                       {et.length} min • {LOCATIONS.find((l) => l.value === et.location)?.label || et.location} • /{et.slug}
-                      {et.price > 0 && ` • ${(et.price / 100).toFixed(2)} ${et.currency?.toUpperCase()}`}
+                      {(et.price ?? 0) > 0 && ` • ${((et.price ?? 0) / 100).toFixed(2)} ${et.currency?.toUpperCase()}`}
                     </div>
                   </div>
                 </div>

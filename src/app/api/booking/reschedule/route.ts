@@ -1,13 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let supabaseClient: any = null;
+
+function getSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    return null;
+  }
+
+  supabaseClient = createClient<any>(supabaseUrl, supabaseServiceRoleKey);
+  return supabaseClient;
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Server misconfigured: missing Supabase environment variables' },
+        { status: 500 }
+      );
+    }
+
     const { token, newStartTime, newEndTime, reason } = await request.json();
 
     if (!token || !newStartTime || !newEndTime) {
@@ -107,10 +126,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Update any pending voice workflow executions with new timing
-    await updateWorkflowExecutions(booking.id, newStartTime);
+    await updateWorkflowExecutions(supabase, booking.id, newStartTime);
 
     // 5. Send reschedule confirmation email
-    await sendRescheduleEmail(booking, oldStartTime, newStartTime);
+    await sendRescheduleEmail(supabase, booking, oldStartTime, newStartTime);
 
     // Determine locale for response message
     const locale = booking.responses?.language || 'fr';
@@ -135,7 +154,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function updateWorkflowExecutions(bookingId: number, newStartTime: string) {
+async function updateWorkflowExecutions(supabase: any, bookingId: number, newStartTime: string) {
   try {
     // Get the workflow execution for this booking
     const { data: executions } = await supabase
@@ -168,7 +187,7 @@ async function updateWorkflowExecutions(bookingId: number, newStartTime: string)
   }
 }
 
-async function sendRescheduleEmail(booking: any, oldStartTime: string, newStartTime: string) {
+async function sendRescheduleEmail(supabase: any, booking: any, oldStartTime: string, newStartTime: string) {
   try {
     // Get event type info
     const { data: eventType } = await supabase

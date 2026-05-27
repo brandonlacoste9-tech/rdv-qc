@@ -79,15 +79,17 @@ export async function POST(request: Request) {
         data: {
           attendeeId: attendee.id,
           eventTypeId: eventType.id,
+          userId: eventType.userId,
+          guestName: name,
+          guestEmail: email.toLowerCase().trim(),
+          guestNotes: body.notes || null,
           startTime: new Date(startTime),
           endTime: new Date(endTime),
           status: "PENDING",
           paymentMethod: paymentMethod,
           paymentStatus: paymentMethod === "INTERAC" ? "UNPAID" : "PAID", // Stripe clears auto, Interac waits for hook
           interacRef: interacReferenceString,
-          amount: basePrice, // Store individual components
-          taxAmount: tpsAmount + tvqAmount, // Store total tax
-          totalAmount: finalInvoiceTotal, // Store total amount
+          paid: paymentMethod !== "INTERAC",
         },
         include: {
           attendee: true,

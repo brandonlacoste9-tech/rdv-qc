@@ -27,9 +27,10 @@ export async function GET(request: NextRequest) {
 
   const eventType = await prisma.eventType.findUnique({ where: { id: eventTypeId } });
   if (!eventType) return apiError("Event type not found", 404);
+  const et: any = eventType;
 
   // Minimum booking notice cutoff — slots starting before this are filtered out
-  const minNoticeMs = (eventType?.minimumBookingNotice ?? 120) * 60 * 1000;
+  const minNoticeMs = (et.minimumBookingNotice ?? 120) * 60 * 1000;
   const noticeCutoff = new Date(Date.now() + minNoticeMs);
 
   // Parse date range (default: next 7 days)
@@ -37,22 +38,22 @@ export async function GET(request: NextRequest) {
   rangeStart.setHours(0, 0, 0, 0);
   const rangeEnd = endTime ? new Date(endTime) : new Date(rangeStart.getTime() + 7 * 86400000);
 
-  const bufB = eventType.bufferBefore || 0;
-  const bufA = eventType.bufferAfter || 0;
-  const slotLen = eventType.length;
+  const bufB = et.bufferBefore || 0;
+  const bufA = et.bufferAfter || 0;
+  const slotLen = et.length;
   const interval = 15;
-  const schedulingType = eventType.schedulingType || "individual";
+  const schedulingType = et.schedulingType || "individual";
   let teamMemberIds: string[] = [];
 
   // Resolve team members
   if (schedulingType === "round_robin" || schedulingType === "collective") {
-    teamMemberIds = eventType.teamMembers || [eventType.userId];
+    teamMemberIds = et.teamMembers || [et.userId];
   } else {
-    teamMemberIds = [eventType.userId];
+    teamMemberIds = [et.userId];
   }
 
-  // --- TASK 14C: Use event type's scheduleId if set ---
-  const scheduleId: number | null = eventType.scheduleId || null;
+  // Prefer event-specific schedule when configured.
+  const scheduleId: string | null = et.scheduleId ? String(et.scheduleId) : null;
 
   // Get schedules for all team members
   let schedules = await prisma.schedule.findMany({
@@ -71,8 +72,8 @@ export async function GET(request: NextRequest) {
     where: { scheduleId: { in: scheduleIds } }
   });
 
-  // --- TASK 13D: Fetch date overrides (blocked dates) for the host ---
-  const hostUserId = eventType.userId;
+  // Load host-level blocked dates (availability overrides).
+  const hostUserId = et.userId;
   const { data: overrides } = await supabase
     .from("availability_overrides")
     .select("date")
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
     const dayStr = cursor.toISOString().split("T")[0];
     const dayOfWeek = cursor.getDay();
 
-    // --- TASK 13D: Skip blocked dates ---
+    // Skip days explicitly blocked by host overrides.
     if (blockedDates.has(dayStr)) {
       cursor.setDate(cursor.getDate() + 1);
       continue;

@@ -55,7 +55,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
     const q = new URLSearchParams(window.location.search);
     if (q.get("booking") === "success") { setBooking({ status: "paid", guestName: form.name || "", eventTypeTitle: eventType?.title || "" }); window.history.replaceState({}, "", `/${username}/${eventSlug}`); return; }
     if (q.get("booking") === "cancelled") { setError("Payment cancelled."); window.history.replaceState({}, "", `/${username}/${eventSlug}`); return; }
-  }, [username, eventSlug, eventType]);
+  }, [username, eventSlug, eventType, form.name]);
 
   useEffect(() => {
     fetch(`/api/v2/me?username=${username}`)

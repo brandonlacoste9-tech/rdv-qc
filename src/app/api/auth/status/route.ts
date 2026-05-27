@@ -24,7 +24,7 @@ export async function GET() {
     status: "success",
     data: {
       connected,
-      credentials: (creds || []).map((c) => ({
+      credentials: (creds || []).map((c: any) => ({
         type: c.type,
         expiresAt: c.expiresAt,
         scope: c.scope,

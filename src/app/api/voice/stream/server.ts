@@ -14,10 +14,27 @@ const activeSessions = new Map<string, CallSession>();
 const callStartTimes = new Map<string, Date>();
 
 // Supabase client for credit operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let supabaseClient: any = null;
+
+function getSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  supabaseClient = createClient<any>(supabaseUrl, supabaseServiceRoleKey);
+  return supabaseClient;
+}
+
+const supabase: any = new Proxy({}, {
+  get(_target, prop) {
+    return getSupabaseClient()[prop as string];
+  },
+});
 
 export function initVoiceWebSocketServer(httpServer: ReturnType<typeof createServer>) {
   const io = new Server(httpServer, {

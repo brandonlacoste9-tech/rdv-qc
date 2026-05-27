@@ -97,9 +97,9 @@ export default async function UserHubPage({ params }: { params: Promise<{ userna
         </div>
 
         {/* Bio */}
-        {user.bio && (
+        {(user as any).bio && (
           <p style={{ fontSize: 14, color: "#a08060", maxWidth: 480, margin: "8px auto 0", lineHeight: 1.6 }}>
-            {user.bio}
+            {(user as any).bio}
           </p>
         )}
       </div>
