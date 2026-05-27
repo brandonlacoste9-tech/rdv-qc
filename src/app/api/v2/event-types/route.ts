@@ -163,12 +163,35 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const baseData: Record<string, any> = {
-      userId: user.id,
-      title: body.title || "Nouveau rendez-vous",
-      slug: body.slug || `rdv-${Date.now()}`,
+    const baseSlug = body.slug || `rdv-${Date.now()}`;
+
+    let created: { id: string } | null = null;
+    try {
+      created = await prisma.eventType.create({
+        data: {
+          userId: user.id,
+          title: body.title || "Nouveau rendez-vous",
+          slug: baseSlug,
+          length: body.length || 30,
+        },
+        select: { id: true },
+      });
+    } catch (error: any) {
+      if (!isUniqueConstraintError(error)) throw error;
+
+      created = await prisma.eventType.create({
+        data: {
+          userId: user.id,
+          title: body.title || "Nouveau rendez-vous",
+          slug: `${baseSlug}-${Date.now().toString().slice(-4)}`,
+          length: body.length || 30,
+        },
+        select: { id: true },
+      });
+    }
+
+    const optionalUpdates: Record<string, any> = {
       description: body.description || "",
-      length: body.length || 30,
       location: body.location || "google-meet",
       color: body.color || "#242424",
       price: body.price || 0,
@@ -181,55 +204,53 @@ export async function POST(request: NextRequest) {
       isActive: true,
     };
 
+    // Best-effort compatibility update for environments with legacy schemas.
+    for (let i = 0; i < 10 && Object.keys(optionalUpdates).length > 0; i++) {
+      try {
+        await prisma.eventType.update({
+          where: { id: created.id },
+          data: optionalUpdates,
+          select: { id: true },
+        });
+        break;
+      } catch (error: any) {
+        if (!isMissingColumnError(error)) {
+          break;
+        }
+
+        const missingColumn = parseMissingColumn(error);
+        if (missingColumn && missingColumn in optionalUpdates) {
+          delete optionalUpdates[missingColumn];
+          continue;
+        }
+
+        delete optionalUpdates.schedulingType;
+        delete optionalUpdates.teamMembers;
+      }
+    }
+
     let eventType: any = null;
-    let createData = { ...baseData };
+    const where = { id: created.id };
     try {
-      eventType = await prisma.eventType.create({
-        data: createData,
+      eventType = await prisma.eventType.findUnique({
+        where,
         select: eventTypeSelect,
       });
-    } catch (error: any) {
-      if (isUniqueConstraintError(error)) {
-        createData.slug = `${createData.slug}-${Date.now().toString().slice(-4)}`;
-      } else if (isMissingColumnError(error)) {
-        const missingColumn = parseMissingColumn(error);
-        if (missingColumn && missingColumn in createData) {
-          delete createData[missingColumn];
-        } else {
-          delete createData.schedulingType;
-          delete createData.teamMembers;
-        }
-      } else {
-        throw error;
-      }
+    } catch (selectError: any) {
+      if (!isMissingColumnError(selectError)) throw selectError;
 
-      const created = await prisma.eventType.create({
-        data: createData,
-        select: { id: true },
-      });
-
-      const where = { id: created.id };
       try {
         eventType = await prisma.eventType.findUnique({
           where,
-          select: eventTypeSelect,
+          select: eventTypeSelectLegacy,
         });
-      } catch (selectError: any) {
-        if (!isMissingColumnError(selectError)) throw selectError;
+      } catch (legacySelectError: any) {
+        if (!isMissingColumnError(legacySelectError)) throw legacySelectError;
 
-        try {
-          eventType = await prisma.eventType.findUnique({
-            where,
-            select: eventTypeSelectLegacy,
-          });
-        } catch (legacySelectError: any) {
-          if (!isMissingColumnError(legacySelectError)) throw legacySelectError;
-
-          eventType = await prisma.eventType.findUnique({
-            where,
-            select: eventTypeSelectMinimal,
-          });
-        }
+        eventType = await prisma.eventType.findUnique({
+          where,
+          select: eventTypeSelectMinimal,
+        });
       }
     }
 
