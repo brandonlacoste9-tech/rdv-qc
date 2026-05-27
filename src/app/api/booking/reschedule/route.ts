@@ -36,6 +36,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const nextStart = new Date(newStartTime);
+    const nextEnd = new Date(newEndTime);
+    if (Number.isNaN(nextStart.getTime()) || Number.isNaN(nextEnd.getTime()) || nextEnd <= nextStart) {
+      return NextResponse.json({ error: 'Plage horaire invalide' }, { status: 400 });
+    }
+
     // 1. Find and verify the booking via secure token
     const { data: booking, error: bookingError } = await supabase
       .from('Booking')
@@ -57,6 +63,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (nextStart.getTime() < Date.now()) {
+      return NextResponse.json({ error: 'Impossible de reprogrammer dans le passé' }, { status: 400 });
+    }
+
+    const { data: eventType } = await supabase
+      .from('EventType')
+      .select('id,minNotice,beforeEventBuffer,afterEventBuffer,bufferBefore,bufferAfter')
+      .eq('id', booking.eventTypeId)
+      .single();
+
+    const minNoticeMinutes = Number(eventType?.minNotice || 0);
+    if (nextStart.getTime() < Date.now() + minNoticeMinutes * 60000) {
+      return NextResponse.json({ error: 'Ce créneau est trop proche selon le délai minimum' }, { status: 409 });
+    }
+
     // ENHANCEMENT: Availability validation per calcom-booking-engine skill
     // Fetch user's Schedule and check dayOfWeek + time overlap before allowing reschedule
     const { data: schedule } = await supabase
@@ -67,19 +88,42 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (schedule && schedule.availability) {
-      const newStart = new Date(newStartTime);
-      const dayOfWeek = newStart.getDay();
-      const matchingAvailability = schedule.availability.find((a: any) => a.dayOfWeek === dayOfWeek);
+      const dayOfWeek = nextStart.getDay();
+      const matchingAvailability = schedule.availability.find((a: any) => {
+        if (Array.isArray(a.days)) return a.days.includes(dayOfWeek);
+        return a.dayOfWeek === dayOfWeek;
+      });
       if (!matchingAvailability) {
         return NextResponse.json({ error: 'Ce créneau n\'est pas disponible' }, { status: 400 });
       }
       // Basic time overlap check (start/end within availability window)
       const availStart = new Date(`1970-01-01T${matchingAvailability.startTime}`);
       const availEnd = new Date(`1970-01-01T${matchingAvailability.endTime}`);
-      const slotStart = new Date(`1970-01-01T${newStart.toTimeString().slice(0,5)}`);
-      if (slotStart < availStart || slotStart >= availEnd) {
+      const slotStart = new Date(`1970-01-01T${nextStart.toTimeString().slice(0,5)}`);
+      const slotEnd = new Date(`1970-01-01T${nextEnd.toTimeString().slice(0,5)}`);
+      if (slotStart < availStart || slotEnd > availEnd) {
         return NextResponse.json({ error: 'Créneau hors disponibilité' }, { status: 400 });
       }
+    }
+
+    const bufferBeforeMinutes = Number(eventType?.bufferBefore ?? eventType?.beforeEventBuffer ?? 0);
+    const bufferAfterMinutes = Number(eventType?.bufferAfter ?? eventType?.afterEventBuffer ?? 0);
+    const checkStart = new Date(nextStart.getTime() - bufferBeforeMinutes * 60000);
+    const checkEnd = new Date(nextEnd.getTime() + bufferAfterMinutes * 60000);
+
+    const { data: conflicts } = await supabase
+      .from('Booking')
+      .select('id')
+      .eq('userId', booking.userId)
+      .neq('id', booking.id)
+      .neq('status', 'cancelled')
+      .neq('status', 'CANCELLED')
+      .lt('startTime', checkEnd.toISOString())
+      .gt('endTime', checkStart.toISOString())
+      .limit(1);
+
+    if (conflicts && conflicts.length > 0) {
+      return NextResponse.json({ error: 'Ce créneau n\'est plus disponible (conflit)' }, { status: 409 });
     }
 
     const oldStartTime = booking.startTime;
@@ -89,8 +133,8 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase
       .from('Booking')
       .update({
-        startTime: new Date(newStartTime).toISOString(),
-        endTime: new Date(newEndTime).toISOString(),
+        startTime: nextStart.toISOString(),
+        endTime: nextEnd.toISOString(),
         status: 'RESCHEDULED',
         updatedAt: new Date().toISOString()
       })

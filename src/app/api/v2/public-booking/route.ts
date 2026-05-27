@@ -17,6 +17,8 @@ const eventTypeSelect = {
   bufferBefore: true,
   bufferAfter: true,
   maxPerDay: true,
+  schedulingType: true,
+  teamMembers: true,
   price: true,
   currency: true,
   meetingUrl: true,
@@ -51,14 +53,55 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const eventType = await prisma.eventType.findFirst({
-      where: {
-        userId: publicUser.id,
-        slug: eventSlug,
-        isActive: true,
-      },
-      select: eventTypeSelect,
-    });
+    let eventType: any = null;
+    try {
+      eventType = await prisma.eventType.findFirst({
+        where: {
+          userId: publicUser.id,
+          slug: eventSlug,
+          isActive: true,
+        },
+        select: eventTypeSelect,
+      });
+    } catch (error: any) {
+      if (error?.code !== "P2022") throw error;
+
+      eventType = await prisma.eventType.findFirst({
+        where: {
+          userId: publicUser.id,
+          slug: eventSlug,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          userId: true,
+          title: true,
+          slug: true,
+          description: true,
+          length: true,
+          location: true,
+          color: true,
+          isActive: true,
+          minNotice: true,
+          bufferBefore: true,
+          bufferAfter: true,
+          maxPerDay: true,
+          price: true,
+          currency: true,
+          meetingUrl: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      if (eventType) {
+        eventType = {
+          ...eventType,
+          schedulingType: "individual",
+          teamMembers: [eventType.userId],
+        };
+      }
+    }
 
     if (!eventType) {
       return NextResponse.json({ error: "Event type not found" }, { status: 404 });

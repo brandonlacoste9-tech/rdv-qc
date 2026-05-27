@@ -3,6 +3,33 @@ import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
+function normalizeSchedulingType(value: unknown): "individual" | "round_robin" | "collective" | "pooled" {
+  if (typeof value !== "string") return "individual";
+  const normalized = value.toLowerCase();
+  if (normalized === "round_robin" || normalized === "collective" || normalized === "pooled") {
+    return normalized;
+  }
+  return "individual";
+}
+
+function normalizeTeamMembers(value: unknown, fallbackUserId: string) {
+  if (Array.isArray(value)) {
+    const ids = value.filter((v): v is string => typeof v === "string" && v.length > 0);
+    return ids.length ? ids : [fallbackUserId];
+  }
+
+  if (typeof value === "string" && value.length > 0) {
+    return [value];
+  }
+
+  if (value && typeof value === "object" && "ids" in value && Array.isArray((value as { ids?: unknown[] }).ids)) {
+    const ids = (value as { ids: unknown[] }).ids.filter((v): v is string => typeof v === "string" && v.length > 0);
+    return ids.length ? ids : [fallbackUserId];
+  }
+
+  return [fallbackUserId];
+}
+
 // ── Calendar link generators (better than Cal.com — included in every response) ──
 function calendarLinks(booking: any, eventType: any) {
   const start = new Date(booking.startTime);
@@ -97,15 +124,15 @@ export async function POST(request: NextRequest) {
     const checkStart = new Date(start.getTime() - bufBefore);
     const checkEnd = new Date(end.getTime() + bufAfter);
 
-    // Conflict check (respects buffer zones)
-    if (!body.allowConflicts) {
-      const { data: conflicts } = await supabase
-        .from("Booking").select("id").eq("eventTypeId", eventTypeId).neq("status", "cancelled")
-        .lt("startTime", checkEnd.toISOString()).gt("endTime", checkStart.toISOString()).limit(1);
-      if (conflicts?.length) return apiError("Ce créneau n'est plus disponible (tampon ou conflit)", 409);
-    }
+    const ownerUserId = String(userId || eventType.userId || "");
+    if (!ownerUserId) return apiError("Missing host user", 500);
 
-    // Daily cap — cal.diy uses bookingLimits jsonb, we check from eventType directly
+    const schedulingType = normalizeSchedulingType(eventType.schedulingType);
+    const teamIds = (schedulingType === "round_robin" || schedulingType === "collective" || schedulingType === "pooled")
+      ? normalizeTeamMembers(eventType.teamMembers, ownerUserId)
+      : [ownerUserId];
+
+    // Daily cap — keep based on event type for backwards compatibility.
     const maxPerDay = eventType.maxPerDay;
     if (maxPerDay) {
       const dayStr = start.toISOString().split("T")[0];
@@ -126,27 +153,53 @@ export async function POST(request: NextRequest) {
       else if (locationType?.includes("teams")) meetingUrl = `https://teams.microsoft.com/l/meetup-join/${rand()}`;
     }
 
-    // ── Round-robin / collective: determine assigned user ──
-    let assignedUserId: string = String(userId || eventType.userId || "");
-    if (!assignedUserId) return apiError("Missing host user", 500);
-    const schedulingType = eventType.schedulingType || "individual";
-    if (schedulingType === "round_robin") {
-      const teamIds = eventType.teamMembers || [userId];
-      // Pick member with fewest bookings in recent period
-      const { data: recentBookings } = await supabase
-        .from("Booking").select("userId").eq("eventTypeId", eventTypeId)
-        .neq("status", "cancelled").in("userId", teamIds)
-        .gte("startTime", new Date(start.getTime() - 86400000).toISOString());
-      const load: Record<string, number> = {};
-      for (const id of teamIds) load[id] = 0;
-      for (const b of recentBookings || []) load[b.userId] = (load[b.userId] || 0) + 1;
-      assignedUserId = teamIds.reduce((a: string, b: string) => (load[a] ?? 0) <= (load[b] ?? 0) ? a : b);
+    // ── Host-aware conflict checks + assignment ──
+    let assignedUserId: string = ownerUserId;
+    if (!body.allowConflicts) {
+      const { data: hostConflicts } = await supabase
+        .from("Booking")
+        .select("id,userId")
+        .neq("status", "cancelled")
+        .in("userId", teamIds)
+        .lt("startTime", checkEnd.toISOString())
+        .gt("endTime", checkStart.toISOString());
+
+      const conflictedHostIds = new Set((hostConflicts || []).map((b: { userId: string }) => b.userId));
+
+      if (schedulingType === "collective") {
+        if (conflictedHostIds.size > 0) {
+          return apiError("Ce créneau n'est plus disponible pour toute l'équipe", 409);
+        }
+      } else if (schedulingType === "round_robin" || schedulingType === "pooled") {
+        const availableHosts = teamIds.filter((id) => !conflictedHostIds.has(id));
+        if (!availableHosts.length) {
+          return apiError("Ce créneau n'est plus disponible (tampon ou conflit)", 409);
+        }
+
+        // Pick the least-loaded available host in a recent window.
+        const { data: recentBookings } = await supabase
+          .from("Booking")
+          .select("userId")
+          .neq("status", "cancelled")
+          .in("userId", availableHosts)
+          .gte("startTime", new Date(start.getTime() - 86400000).toISOString());
+
+        const load: Record<string, number> = {};
+        for (const id of availableHosts) load[id] = 0;
+        for (const b of recentBookings || []) load[b.userId] = (load[b.userId] || 0) + 1;
+        assignedUserId = availableHosts.reduce((a: string, b: string) => (load[a] ?? 0) <= (load[b] ?? 0) ? a : b);
+      } else if (conflictedHostIds.has(ownerUserId)) {
+        return apiError("Ce créneau n'est plus disponible (tampon ou conflit)", 409);
+      }
+    } else if (schedulingType === "round_robin" || schedulingType === "pooled") {
+      assignedUserId = teamIds[0] || ownerUserId;
     }
 
     const isPaid = eventType.price === 0;
     const bookingStatus = isPaid ? "accepted" : "pending";
     const bookingId = Math.floor(Math.random() * 90000000) + 10000000; // 8-digit integer fitting PostgreSQL int4
     const bookingUid = crypto.randomUUID(); // text uid for cal.diy
+    const cancelToken = crypto.randomUUID();
     const now = new Date().toISOString();
 
     // cal.diy Booking: attendee info in responses jsonb, not guestName/guestEmail columns
@@ -158,15 +211,19 @@ export async function POST(request: NextRequest) {
       location: locationType,
     };
 
-    const { data: booking, error } = await supabase.from("Booking").insert({
+    const baseInsertPayload: Record<string, any> = {
       id: bookingId,
       uid: bookingUid,
       eventTypeId,
       userId: assignedUserId,
       title: eventType.title || `RDV avec ${guestName}`,
+      guestName,
+      guestEmail,
+      guestNotes,
       startTime: start.toISOString(),
       endTime: end.toISOString(),
       status: bookingStatus,
+      cancelToken,
       paid: isPaid,
       location: meetingUrl || "",
       userPrimaryEmail: guestEmail,
@@ -174,9 +231,34 @@ export async function POST(request: NextRequest) {
       metadata: {},
       createdAt: now,
       updatedAt: now,
-    }).select().single();
+    };
 
-    if (error) return apiError(error.message, 500);
+    const insertPayload = { ...baseInsertPayload };
+    let booking: any = null;
+    let lastInsertError: any = null;
+    for (let attemptIndex = 0; attemptIndex < 8; attemptIndex++) {
+      const attempt = await supabase.from("Booking").insert(insertPayload).select().single();
+      if (!attempt.error) {
+        booking = attempt.data;
+        lastInsertError = null;
+        break;
+      }
+
+      lastInsertError = attempt.error;
+      const msg = String(attempt.error.message || "");
+      const missingColumnMatch = msg.match(/Could not find the '([^']+)' column/);
+      if (!missingColumnMatch) {
+        break;
+      }
+
+      const missingColumn = missingColumnMatch[1];
+      if (!(missingColumn in insertPayload)) {
+        break;
+      }
+      delete insertPayload[missingColumn];
+    }
+
+    if (lastInsertError) return apiError(lastInsertError.message, 500);
 
     // Fire webhooks
     const { data: webhooks } = await supabase.from("Webhook").select("*").eq("userId", userId).eq("isActive", true);

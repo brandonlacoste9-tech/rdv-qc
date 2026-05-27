@@ -4,6 +4,45 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+type AvailabilityIntervalInput = {
+  dayOfWeek?: number;
+  days?: number[];
+  startTime: string;
+  endTime: string;
+  isActive?: boolean;
+};
+
+function normalizeDay(day: unknown) {
+  if (typeof day !== "number" || !Number.isInteger(day)) return null;
+  return day >= 0 && day <= 6 ? day : null;
+}
+
+function expandIntervals(intervals: AvailabilityIntervalInput[]) {
+  const expanded: Array<{ dayOfWeek: number; startTime: string; endTime: string; isActive: boolean }> = [];
+
+  for (const interval of intervals) {
+    const days = Array.isArray(interval.days)
+      ? interval.days.map(normalizeDay).filter((d): d is number => d !== null)
+      : [];
+
+    const singleDay = normalizeDay(interval.dayOfWeek);
+    if (singleDay !== null && !days.includes(singleDay)) {
+      days.push(singleDay);
+    }
+
+    for (const day of days) {
+      expanded.push({
+        dayOfWeek: day,
+        startTime: interval.startTime,
+        endTime: interval.endTime,
+        isActive: interval.isActive ?? true,
+      });
+    }
+  }
+
+  return expanded;
+}
+
 export async function PUT(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -66,9 +105,10 @@ export async function PUT(request: NextRequest) {
     });
 
     // 4. Insert new intervals
-    if (intervals && intervals.length > 0) {
+    if (Array.isArray(intervals) && intervals.length > 0) {
+      const expanded = expandIntervals(intervals as AvailabilityIntervalInput[]);
       await prisma.availability.createMany({
-        data: intervals.map((i: any) => ({
+        data: expanded.map((i) => ({
           scheduleId: schedule!.id,
           dayOfWeek: i.dayOfWeek,
           startTime: i.startTime,

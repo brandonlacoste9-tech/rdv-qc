@@ -18,6 +18,8 @@ const eventTypeSelect = {
   bufferBefore: true,
   bufferAfter: true,
   maxPerDay: true,
+  schedulingType: true,
+  teamMembers: true,
   price: true,
   currency: true,
   meetingUrl: true,
@@ -99,7 +101,7 @@ export async function PATCH(
     }
 
     const updates: any = {};
-    const allowedFields = ["title", "slug", "description", "length", "location", "color", "price", "currency", "bufferBefore", "bufferAfter", "maxPerDay", "isActive"];
+    const allowedFields = ["title", "slug", "description", "length", "location", "color", "price", "currency", "bufferBefore", "bufferAfter", "maxPerDay", "schedulingType", "teamMembers", "isActive"];
     
     for (const field of allowedFields) {
       if (body[field] !== undefined) {

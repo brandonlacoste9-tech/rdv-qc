@@ -5,6 +5,30 @@ import { calculateQuebecTaxes } from "@/lib/taxEngine";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
+function normalizeSchedulingType(value: unknown): "individual" | "round_robin" | "collective" | "pooled" {
+  if (typeof value !== "string") return "individual";
+  const normalized = value.toLowerCase();
+  if (normalized === "round_robin" || normalized === "collective" || normalized === "pooled") {
+    return normalized;
+  }
+  return "individual";
+}
+
+function normalizeTeamMembers(value: unknown, fallbackUserId: string) {
+  if (Array.isArray(value)) {
+    const ids = value.filter((v): v is string => typeof v === "string" && v.length > 0);
+    return ids.length ? ids : [fallbackUserId];
+  }
+  if (typeof value === "string" && value.length > 0) {
+    return [value];
+  }
+  if (value && typeof value === "object" && "ids" in value && Array.isArray((value as { ids?: unknown[] }).ids)) {
+    const ids = (value as { ids: unknown[] }).ids.filter((v): v is string => typeof v === "string" && v.length > 0);
+    return ids.length ? ids : [fallbackUserId];
+  }
+  return [fallbackUserId];
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -40,15 +64,49 @@ export async function POST(request: NextRequest) {
     const guestEmail = attendee?.email || "";
     if (!guestName || !guestEmail) return NextResponse.json({ error: "attendee.name and attendee.email required" }, { status: 400 });
 
-    // Check for conflicts
-    const { data: conflicts } = await supabase
-      .from("Booking").select("id").eq("eventTypeId", et.id)
-      .neq("status", "cancelled")
-      .lt("startTime", endDate.toISOString())
-      .gt("endTime", startDate.toISOString())
-      .limit(1);
+    const schedulingType = normalizeSchedulingType(et.schedulingType);
+    const teamIds = (schedulingType === "round_robin" || schedulingType === "collective" || schedulingType === "pooled")
+      ? normalizeTeamMembers(et.teamMembers, et.userId)
+      : [et.userId];
 
-    if (conflicts?.length) return NextResponse.json({ error: "Slot not available" }, { status: 409 });
+    const checkStart = new Date(startDate.getTime() - (et.bufferBefore || 0) * 60000);
+    const checkEnd = new Date(endDate.getTime() + (et.bufferAfter || 0) * 60000);
+    const { data: conflicts } = await supabase
+      .from("Booking")
+      .select("id,userId")
+      .in("userId", teamIds)
+      .neq("status", "cancelled")
+      .neq("status", "CANCELLED")
+      .lt("startTime", checkEnd.toISOString())
+      .gt("endTime", checkStart.toISOString());
+
+    const conflictedHostIds = new Set((conflicts || []).map((b: { userId: string }) => b.userId));
+    let assignedHostId = et.userId;
+    if (schedulingType === "collective") {
+      if (conflictedHostIds.size > 0) {
+        return NextResponse.json({ error: "Slot not available for all hosts" }, { status: 409 });
+      }
+    } else if (schedulingType === "round_robin" || schedulingType === "pooled") {
+      const availableHosts = teamIds.filter((id) => !conflictedHostIds.has(id));
+      if (!availableHosts.length) {
+        return NextResponse.json({ error: "Slot not available" }, { status: 409 });
+      }
+
+      const { data: recentBookings } = await supabase
+        .from("Booking")
+        .select("userId")
+        .in("userId", availableHosts)
+        .neq("status", "cancelled")
+        .neq("status", "CANCELLED")
+        .gte("startTime", new Date(startDate.getTime() - 86400000).toISOString());
+
+      const load: Record<string, number> = {};
+      for (const id of availableHosts) load[id] = 0;
+      for (const b of recentBookings || []) load[b.userId] = (load[b.userId] || 0) + 1;
+      assignedHostId = availableHosts.reduce((a, b) => (load[a] ?? 0) <= (load[b] ?? 0) ? a : b);
+    } else if (conflictedHostIds.has(et.userId)) {
+      return NextResponse.json({ error: "Slot not available" }, { status: 409 });
+    }
 
     const origin = request.headers.get("origin") || request.nextUrl.origin;
 
@@ -95,7 +153,7 @@ export async function POST(request: NextRequest) {
         guestEmail,
         guestNotes: metadata?.notes || "",
         guestTimezone: attendee?.timeZone || "UTC",
-        userId: et.userId,
+        userId: assignedHostId,
         lengthMinutes: String(lengthMin),
         basePriceCents: String(et.price),
         tpsCents: String(tax.tpsCents),

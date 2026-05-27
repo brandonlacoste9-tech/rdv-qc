@@ -47,6 +47,8 @@ model EventType {
   bufferBefore Int     @default(0)
   bufferAfter  Int     @default(0)
   maxPerDay    Int?
+  schedulingType String?  @default("individual")
+  teamMembers    Json?
   price        Int      @default(0)
   currency     String   @default("cad")
   isPrivate    Boolean  @default(false)
