@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { themes } from '@/lib/theme';
 
 type ChatMessage = {
@@ -46,6 +46,12 @@ type BookResponse = {
   };
 };
 
+type MeResponse = {
+  username?: string | null;
+  timeZone?: string | null;
+  eventTypes?: Array<{ slug?: string | null; isActive?: boolean | null }>;
+};
+
 function toDateInputValue(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -75,6 +81,9 @@ export function TextSchedulingAssistant({
   defaultEventTypeSlug?: string;
 }) {
   const palette = themes.cognac;
+  const userEditedUsernameRef = useRef(false);
+  const userEditedEventSlugRef = useRef(false);
+  const userEditedTimeZoneRef = useRef(false);
   const [username, setUsername] = useState(defaultUsername);
   const [eventTypeSlug, setEventTypeSlug] = useState(defaultEventTypeSlug);
   const [selectedDate, setSelectedDate] = useState(toDateInputValue(new Date()));
@@ -104,8 +113,54 @@ export function TextSchedulingAssistant({
     setMessages((prev) => [...prev, { id: createId(), role, text }]);
   };
 
-  const loadEventContext = async () => {
-    const url = `/api/v2/public-booking?username=${encodeURIComponent(username)}&eventSlug=${encodeURIComponent(eventTypeSlug)}`;
+  const getProfileDefaults = async () => {
+    try {
+      const res = await fetch('/api/v2/me', { cache: 'no-store' });
+      if (!res.ok) return null;
+
+      const data = (await res.json()) as MeResponse;
+      const suggestedSlug =
+        data.eventTypes?.find((eventType) => eventType?.isActive !== false && typeof eventType?.slug === 'string' && eventType.slug.length > 0)
+          ?.slug ||
+        data.eventTypes?.find((eventType) => typeof eventType?.slug === 'string' && eventType.slug.length > 0)?.slug ||
+        '';
+
+      return {
+        username: data.username || '',
+        eventTypeSlug: suggestedSlug,
+        timeZone: data.timeZone || '',
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const hydrateDefaults = async () => {
+      const defaults = await getProfileDefaults();
+      if (!mounted || !defaults) return;
+
+      if (!userEditedUsernameRef.current && defaults.username) {
+        setUsername(defaults.username);
+      }
+      if (!userEditedEventSlugRef.current && defaults.eventTypeSlug) {
+        setEventTypeSlug(defaults.eventTypeSlug);
+      }
+      if (!userEditedTimeZoneRef.current && defaults.timeZone) {
+        setTimeZone(defaults.timeZone);
+      }
+    };
+
+    hydrateDefaults();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const loadEventContext = async (usernameToUse: string, eventTypeSlugToUse: string) => {
+    const url = `/api/v2/public-booking?username=${encodeURIComponent(usernameToUse)}&eventSlug=${encodeURIComponent(eventTypeSlugToUse)}`;
     const res = await fetch(url);
     const data = (await res.json()) as PublicBookingResponse;
 
@@ -113,8 +168,10 @@ export function TextSchedulingAssistant({
       throw new Error(data.error || 'Unable to load event details.');
     }
 
-    setEventTitle(data.data?.title || 'Discovery Call');
-    setEventLength(data.data?.length || 30);
+    return {
+      title: data.data?.title || 'Discovery Call',
+      length: data.data?.length || 30,
+    };
   };
 
   const handleLoadSlots = async (e?: FormEvent) => {
@@ -123,7 +180,17 @@ export function TextSchedulingAssistant({
     setSelectedStart('');
 
     try {
-      await loadEventContext();
+      let effectiveUsername = username;
+      let effectiveEventTypeSlug = eventTypeSlug;
+      let context = await loadEventContext(effectiveUsername, effectiveEventTypeSlug);
+
+      setEventTitle(context.title);
+      setEventLength(context.length);
+
+      // Recover automatically if defaults were stale and backend reports missing user.
+      if (!context.title && !context.length) {
+        throw new Error('Unable to load event details.');
+      }
 
       const startTime = `${selectedDate}T00:00:00.000Z`;
       const endDate = new Date(`${selectedDate}T00:00:00.000Z`);
@@ -143,13 +210,62 @@ export function TextSchedulingAssistant({
 
       addMessage('user', `Find slots for ${selectedDate} (${timeZone})`);
       if (slotsForDate.length) {
-        addMessage('assistant', `Found ${slotsForDate.length} available times for ${eventTitle}.`);
+        addMessage('assistant', `Found ${slotsForDate.length} available times for ${context.title}.`);
       } else {
         addMessage('assistant', 'No free times found for that date. Try a different date.');
       }
     } catch (error: any) {
+      const message = error?.message || 'Failed to load slots.';
+
+      if (String(message).toLowerCase().includes('user not found')) {
+        const defaults = await getProfileDefaults();
+        if (defaults?.username) {
+          const effectiveUsername = defaults.username;
+          const effectiveEventTypeSlug =
+            !userEditedEventSlugRef.current && defaults.eventTypeSlug
+              ? defaults.eventTypeSlug
+              : eventTypeSlug;
+
+          if (!userEditedUsernameRef.current) setUsername(effectiveUsername);
+          if (!userEditedEventSlugRef.current && defaults.eventTypeSlug) {
+            setEventTypeSlug(defaults.eventTypeSlug);
+          }
+          if (!userEditedTimeZoneRef.current && defaults.timeZone) {
+            setTimeZone(defaults.timeZone);
+          }
+
+          try {
+            const context = await loadEventContext(effectiveUsername, effectiveEventTypeSlug);
+            setEventTitle(context.title);
+            setEventLength(context.length);
+
+            const startTime = `${selectedDate}T00:00:00.000Z`;
+            const endDate = new Date(`${selectedDate}T00:00:00.000Z`);
+            endDate.setUTCDate(endDate.getUTCDate() + 1);
+            const endTime = endDate.toISOString();
+
+            const slotsUrl = `/api/v2/slots?username=${encodeURIComponent(effectiveUsername)}&eventTypeSlug=${encodeURIComponent(effectiveEventTypeSlug)}&startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&timeZone=${encodeURIComponent(timeZone)}`;
+            const res = await fetch(slotsUrl);
+            const data = (await res.json()) as SlotsResponse;
+
+            if (!res.ok || data.status !== 'success') {
+              throw new Error(data.error?.message || 'Could not load availability.');
+            }
+
+            const slotsForDate = data.data?.[selectedDate] || [];
+            setAvailableSlots(slotsForDate);
+
+            addMessage('assistant', `Profile defaults loaded. Found ${slotsForDate.length} available times.`);
+            setLoadingSlots(false);
+            return;
+          } catch {
+            // Fall through to user-facing guidance below.
+          }
+        }
+      }
+
       setAvailableSlots([]);
-      addMessage('system', error?.message || 'Failed to load slots.');
+      addMessage('system', `${message} Please confirm Username and Event slug fields.`);
     } finally {
       setLoadingSlots(false);
     }
@@ -217,7 +333,10 @@ export function TextSchedulingAssistant({
             Username
             <input
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                userEditedUsernameRef.current = true;
+                setUsername(e.target.value);
+              }}
               style={{
                 padding: 10,
                 borderRadius: 8,
@@ -231,7 +350,10 @@ export function TextSchedulingAssistant({
             Event slug
             <input
               value={eventTypeSlug}
-              onChange={(e) => setEventTypeSlug(e.target.value)}
+              onChange={(e) => {
+                userEditedEventSlugRef.current = true;
+                setEventTypeSlug(e.target.value);
+              }}
               style={{
                 padding: 10,
                 borderRadius: 8,
@@ -260,7 +382,10 @@ export function TextSchedulingAssistant({
             Time zone
             <input
               value={timeZone}
-              onChange={(e) => setTimeZone(e.target.value)}
+              onChange={(e) => {
+                userEditedTimeZoneRef.current = true;
+                setTimeZone(e.target.value);
+              }}
               style={{
                 padding: 10,
                 borderRadius: 8,
