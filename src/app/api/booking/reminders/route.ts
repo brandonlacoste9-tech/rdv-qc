@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-let supabaseClient: any = null;
-
-function getSupabaseClient() {
-  if (supabaseClient) return supabaseClient;
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    return null;
-  }
-
-  supabaseClient = createClient<any>(supabaseUrl, supabaseServiceRoleKey);
-  return supabaseClient;
-}
+import { supabase } from '@/lib/supabase';
+import { getEnvVar, validateCoreEnv } from '@/lib/env';
 
 type ReminderPreferences = {
   email24h?: {
@@ -91,22 +76,102 @@ async function sendSmsReminder(to: string, message: string) {
   }
 }
 
+function reminderKey(bookingId: string, reminderType: string) {
+  return `${bookingId}:${reminderType}`;
+}
+
+function isMissingOnConflictConstraintError(error: any) {
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('on conflict') && message.includes('constraint');
+}
+
+async function claimReminderSend(params: {
+  bookingId: string;
+  reminderType: '24h' | 'sms2h';
+  recipient: string;
+  runClaims: Set<string>;
+}) {
+  const { bookingId, reminderType, recipient, runClaims } = params;
+  const claimKey = reminderKey(bookingId, reminderType);
+  if (runClaims.has(claimKey)) {
+    return null;
+  }
+
+  runClaims.add(claimKey);
+  const claimTimestamp = new Date().toISOString();
+
+  const reminderRecord = {
+    booking_id: bookingId,
+    reminder_type: reminderType,
+    sent_at: claimTimestamp,
+    recipient_email: recipient,
+  };
+
+  const upsertAttempt = await supabase
+    .from('email_reminders')
+    .upsert(reminderRecord, { onConflict: 'booking_id,reminder_type', ignoreDuplicates: true })
+    .select('id')
+    .maybeSingle();
+
+  if (!upsertAttempt.error) {
+    if (!upsertAttempt.data) {
+      return null;
+    }
+
+    return { claimTimestamp, claimKey };
+  }
+
+  if (!isMissingOnConflictConstraintError(upsertAttempt.error)) {
+    throw new Error(upsertAttempt.error.message || 'Unable to claim reminder send');
+  }
+
+  const existing = await supabase
+    .from('email_reminders')
+    .select('id')
+    .eq('booking_id', bookingId)
+    .eq('reminder_type', reminderType)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing.error) {
+    throw new Error(existing.error.message || 'Failed to verify existing reminder claim');
+  }
+  if (existing.data) {
+    return null;
+  }
+
+  const insertAttempt = await supabase.from('email_reminders').insert(reminderRecord);
+  if (insertAttempt.error) {
+    if (String(insertAttempt.error.code || '') === '23505') {
+      return null;
+    }
+    throw new Error(insertAttempt.error.message || 'Unable to create reminder claim');
+  }
+
+  return { claimTimestamp, claimKey };
+}
+
+async function releaseReminderClaim(bookingId: string, reminderType: '24h' | 'sms2h', claimTimestamp: string) {
+  await supabase
+    .from('email_reminders')
+    .delete()
+    .eq('booking_id', bookingId)
+    .eq('reminder_type', reminderType)
+    .eq('sent_at', claimTimestamp);
+}
+
 // Email reminder cron job - runs every hour
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json(
-        { error: 'Server misconfigured: missing Supabase environment variables' },
-        { status: 500 }
-      );
-    }
+    validateCoreEnv();
+    const appUrl = getEnvVar('NEXT_PUBLIC_APP_URL', 'booking-reminders');
+    const internalApiKey = getEnvVar('INTERNAL_API_KEY', 'booking-reminders');
+    const cronSecret = getEnvVar('CRON_SECRET', 'booking-reminders');
 
     // Verify cron secret
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+
+    if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -137,6 +202,7 @@ export async function POST(request: NextRequest) {
 
     const eventTypeCache = new Map<string, any>();
     const userCache = new Map<string, any>();
+    const runClaims = new Set<string>();
 
     for (const booking of bookings || []) {
       try {
@@ -194,45 +260,44 @@ export async function POST(request: NextRequest) {
         };
 
         if (emailWindow && emailPrefs.enabled && attendeeEmail) {
-          const { data: existingEmailReminder } = await supabase
-            .from('email_reminders')
-            .select('id')
-            .eq('booking_id', String(booking.id))
-            .eq('reminder_type', '24h')
-            .single();
+          const bookingId = String(booking.id);
+          const claim = await claimReminderSend({
+            bookingId,
+            reminderType: '24h',
+            recipient: attendeeEmail,
+            runClaims,
+          });
 
-          if (!existingEmailReminder) {
-            const renderedSubject = renderTemplate(emailPrefs.subject, templateVars);
-            const renderedBody = renderTemplate(emailPrefs.body, templateVars);
-            const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/send`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${process.env.INTERNAL_API_KEY}`,
-              },
-              body: JSON.stringify({
-                to: attendeeEmail,
-                template: 'generic',
-                data: {
-                  subject: renderedSubject,
-                  message: renderedBody,
+          if (claim) {
+            try {
+              const renderedSubject = renderTemplate(emailPrefs.subject, templateVars);
+              const renderedBody = renderTemplate(emailPrefs.body, templateVars);
+              const emailResponse = await fetch(`${appUrl}/api/email/send`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${internalApiKey}`,
                 },
-              }),
-            });
+                body: JSON.stringify({
+                  to: attendeeEmail,
+                  template: 'generic',
+                  data: {
+                    subject: renderedSubject,
+                    message: renderedBody,
+                  },
+                }),
+              });
 
-            if (!emailResponse.ok) {
-              throw new Error('Email API failed');
+              if (!emailResponse.ok) {
+                throw new Error('Email API failed');
+              }
+
+              results.emailsSent++;
+              results.details.push({ bookingId: booking.id, channel: 'email24h', recipient: attendeeEmail, status: 'sent' });
+            } catch (sendError) {
+              await releaseReminderClaim(bookingId, '24h', claim.claimTimestamp);
+              throw sendError;
             }
-
-            await supabase.from('email_reminders').insert({
-              booking_id: String(booking.id),
-              reminder_type: '24h',
-              sent_at: new Date().toISOString(),
-              recipient_email: attendeeEmail,
-            });
-
-            results.emailsSent++;
-            results.details.push({ bookingId: booking.id, channel: 'email24h', recipient: attendeeEmail, status: 'sent' });
           }
         }
 
@@ -242,26 +307,25 @@ export async function POST(request: NextRequest) {
           } else if (!attendeePhone) {
             results.details.push({ bookingId: booking.id, channel: 'sms2h', status: 'skipped', reason: 'missing_phone' });
           } else {
-            const { data: existingSmsReminder } = await supabase
-              .from('email_reminders')
-              .select('id')
-              .eq('booking_id', String(booking.id))
-              .eq('reminder_type', 'sms2h')
-              .single();
+            const bookingId = String(booking.id);
+            const claim = await claimReminderSend({
+              bookingId,
+              reminderType: 'sms2h',
+              recipient: attendeePhone,
+              runClaims,
+            });
 
-            if (!existingSmsReminder) {
-              const smsMessage = renderTemplate(smsPrefs.message, templateVars);
-              await sendSmsReminder(attendeePhone, smsMessage);
+            if (claim) {
+              try {
+                const smsMessage = renderTemplate(smsPrefs.message, templateVars);
+                await sendSmsReminder(attendeePhone, smsMessage);
 
-              await supabase.from('email_reminders').insert({
-                booking_id: String(booking.id),
-                reminder_type: 'sms2h',
-                sent_at: new Date().toISOString(),
-                recipient_email: attendeePhone,
-              });
-
-              results.smsSent++;
-              results.details.push({ bookingId: booking.id, channel: 'sms2h', recipient: attendeePhone, status: 'sent' });
+                results.smsSent++;
+                results.details.push({ bookingId: booking.id, channel: 'sms2h', recipient: attendeePhone, status: 'sent' });
+              } catch (sendError) {
+                await releaseReminderClaim(bookingId, 'sms2h', claim.claimTimestamp);
+                throw sendError;
+              }
             }
           }
         }
@@ -291,10 +355,13 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint for manual triggering
 export async function GET(request: NextRequest) {
+  validateCoreEnv();
+
   const url = new URL(request.url);
   const secret = url.searchParams.get('secret');
+  const cronSecret = getEnvVar('CRON_SECRET', 'booking-reminders');
   
-  if (secret !== process.env.CRON_SECRET) {
+  if (secret !== cronSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
