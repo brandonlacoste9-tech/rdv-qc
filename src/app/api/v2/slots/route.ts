@@ -81,6 +81,12 @@ function normalizeTeamMembers(value: unknown, fallbackUserId: string) {
   return [fallbackUserId];
 }
 
+function isMissingColumnError(error: any) {
+  if (error?.code === "P2022") return true;
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("does not exist") || message.includes("unknown column");
+}
+
 export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
@@ -88,8 +94,8 @@ export async function GET(request: NextRequest) {
   const eventTypeSlug = searchParams.get("eventTypeSlug");
   const username = searchParams.get("username") || "planxo";
   const timeZone = searchParams.get("timeZone") || "UTC";
-  const startTime = searchParams.get("startTime");
-  const endTime = searchParams.get("endTime");
+  const startTime = searchParams.get("startTime") || searchParams.get("start");
+  const endTime = searchParams.get("endTime") || searchParams.get("end");
 
   // Validate date format if 'startTime' or 'endTime' is provided
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -131,24 +137,43 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     // Backward compatibility while DB migration is rolling out.
-    if (error?.code !== "P2022") throw error;
-    eventType = await prisma.eventType.findUnique({
-      where: { id: eventTypeId },
-      select: {
-        id: true,
-        userId: true,
-        length: true,
-        minNotice: true,
-        bufferBefore: true,
-        bufferAfter: true,
-        maxPerDay: true,
-        scheduleId: true,
-        isActive: true,
-      },
-    });
+    if (!isMissingColumnError(error)) throw error;
+    try {
+      eventType = await prisma.eventType.findUnique({
+        where: { id: eventTypeId },
+        select: {
+          id: true,
+          userId: true,
+          length: true,
+          minNotice: true,
+          bufferBefore: true,
+          bufferAfter: true,
+          maxPerDay: true,
+          scheduleId: true,
+          isActive: true,
+        },
+      });
+    } catch (legacyError: any) {
+      if (!isMissingColumnError(legacyError)) throw legacyError;
+      eventType = await prisma.eventType.findUnique({
+        where: { id: eventTypeId },
+        select: {
+          id: true,
+          userId: true,
+          length: true,
+        },
+      });
+    }
+
     if (eventType) {
       eventType = {
         ...eventType,
+        minNotice: eventType.minNotice ?? 60,
+        bufferBefore: eventType.bufferBefore ?? 0,
+        bufferAfter: eventType.bufferAfter ?? 0,
+        maxPerDay: eventType.maxPerDay ?? null,
+        scheduleId: eventType.scheduleId ?? null,
+        isActive: eventType.isActive ?? true,
         schedulingType: "individual",
         teamMembers: [eventType.userId],
       };
@@ -202,16 +227,29 @@ export async function GET(request: NextRequest) {
   if (!schedules?.length) return NextResponse.json({ status: "success", data: {} });
 
   const scheduleIds = schedules.map((s: any) => s.id);
-  const allIntervals = await prisma.availability.findMany({
-    where: { scheduleId: { in: scheduleIds }, isActive: true },
-    select: {
-      scheduleId: true,
-      dayOfWeek: true,
-      startTime: true,
-      endTime: true,
-      isActive: true,
-    },
-  });
+  let allIntervals: any[] = [];
+  try {
+    allIntervals = await prisma.availability.findMany({
+      where: { scheduleId: { in: scheduleIds }, isActive: true },
+      select: {
+        scheduleId: true,
+        dayOfWeek: true,
+        startTime: true,
+        endTime: true,
+        isActive: true,
+      },
+    });
+  } catch (error: any) {
+    if (!isMissingColumnError(error)) throw error;
+    allIntervals = await prisma.availability.findMany({
+      where: { scheduleId: { in: scheduleIds } },
+      select: {
+        scheduleId: true,
+        startTime: true,
+        endTime: true,
+      },
+    });
+  }
 
   // Load host-level blocked dates (availability overrides).
   const hostUserId = et.userId;
