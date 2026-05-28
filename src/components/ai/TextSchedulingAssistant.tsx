@@ -70,6 +70,12 @@ function toDateInputValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function addDaysToDateInputValue(dateInput: string, days: number) {
+  const date = new Date(`${dateInput}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function formatSlotForDisplay(iso: string, timeZone: string) {
   return new Date(iso).toLocaleString('en-CA', {
     hour: '2-digit',
@@ -311,6 +317,37 @@ export function TextSchedulingAssistant({
     return pickSlotsForDate(data.data, selectedDate);
   };
 
+  const loadNextAvailableSlots = async (
+    usernameToUse: string,
+    eventTypeSlugToUse: string,
+    timeZoneToUse: string,
+    lookAheadDays = 14
+  ) => {
+    const startTime = `${selectedDate}T00:00:00.000Z`;
+    const endDay = addDaysToDateInputValue(selectedDate, lookAheadDays);
+    const endTime = `${endDay}T23:59:59.999Z`;
+
+    const slotsUrl = `/api/v2/slots?username=${encodeURIComponent(usernameToUse)}&eventTypeSlug=${encodeURIComponent(eventTypeSlugToUse)}&startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&timeZone=${encodeURIComponent(timeZoneToUse)}`;
+    const res = await fetch(slotsUrl);
+    const data = (await res.json()) as SlotsResponse;
+
+    if (!res.ok || data.status !== 'success') {
+      throw new Error(data.error?.message || 'Could not load availability.');
+    }
+
+    const entries = Object.entries(data.data || {})
+      .filter(([, slots]) => Array.isArray(slots) && slots.length > 0)
+      .sort(([a], [b]) => a.localeCompare(b));
+
+    for (const [dateKey, slots] of entries) {
+      if (dateKey >= selectedDate) {
+        return { slots, dateKey };
+      }
+    }
+
+    return { slots: [] as string[], dateKey: selectedDate };
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -391,6 +428,23 @@ export function TextSchedulingAssistant({
           addMessage('system', `Showing times from ${matchedDateKey} to match timezone alignment.`);
         }
       } else {
+        try {
+          const nextAvailable = await loadNextAvailableSlots(effectiveUsername, effectiveEventTypeSlug, effectiveTimeZone);
+          if (nextAvailable.slots.length) {
+            setAvailableSlots(nextAvailable.slots);
+            if (nextAvailable.dateKey !== selectedDate) {
+              setSelectedDate(nextAvailable.dateKey);
+            }
+            addMessage(
+              'assistant',
+              `No free times on ${selectedDate}. Next available times are on ${nextAvailable.dateKey}.`
+            );
+            return;
+          }
+        } catch {
+          // Fall through to existing guidance.
+        }
+
         const defaults = await getProfileDefaults();
         if (defaults?.availabilityKnown && defaults.source === 'authenticated' && defaults.hasAvailability) {
           try {
