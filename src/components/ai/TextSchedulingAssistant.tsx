@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useMemo, useState } from 'react';
+import { themes } from '@/lib/theme';
 
 type ChatMessage = {
   id: string;
@@ -73,6 +74,7 @@ export function TextSchedulingAssistant({
   defaultUsername?: string;
   defaultEventTypeSlug?: string;
 }) {
+  const palette = themes.cognac;
   const [username, setUsername] = useState(defaultUsername);
   const [eventTypeSlug, setEventTypeSlug] = useState(defaultEventTypeSlug);
   const [selectedDate, setSelectedDate] = useState(toDateInputValue(new Date()));
@@ -202,29 +204,71 @@ export function TextSchedulingAssistant({
       <form
         onSubmit={handleLoadSlots}
         style={{
-          border: '1px solid rgba(0,0,0,0.12)',
+          border: `1px solid ${palette.border}`,
           borderRadius: 14,
           padding: 18,
-          background: 'white',
+          background: palette.cardBg,
+          color: palette.text,
           display: 'grid',
           gap: 14,
         }}>
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
           <label style={{ display: 'grid', gap: 6, fontSize: 13 }}>
             Username
-            <input value={username} onChange={(e) => setUsername(e.target.value)} style={{ padding: 10, borderRadius: 8, border: '1px solid rgba(0,0,0,0.15)' }} />
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              style={{
+                padding: 10,
+                borderRadius: 8,
+                border: `1px solid ${palette.border}`,
+                background: palette.bgSecondary,
+                color: palette.text,
+              }}
+            />
           </label>
           <label style={{ display: 'grid', gap: 6, fontSize: 13 }}>
             Event slug
-            <input value={eventTypeSlug} onChange={(e) => setEventTypeSlug(e.target.value)} style={{ padding: 10, borderRadius: 8, border: '1px solid rgba(0,0,0,0.15)' }} />
+            <input
+              value={eventTypeSlug}
+              onChange={(e) => setEventTypeSlug(e.target.value)}
+              style={{
+                padding: 10,
+                borderRadius: 8,
+                border: `1px solid ${palette.border}`,
+                background: palette.bgSecondary,
+                color: palette.text,
+              }}
+            />
           </label>
           <label style={{ display: 'grid', gap: 6, fontSize: 13 }}>
             Date
-            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ padding: 10, borderRadius: 8, border: '1px solid rgba(0,0,0,0.15)' }} />
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{
+                padding: 10,
+                borderRadius: 8,
+                border: `1px solid ${palette.border}`,
+                background: palette.bgSecondary,
+                color: palette.text,
+              }}
+            />
           </label>
           <label style={{ display: 'grid', gap: 6, fontSize: 13 }}>
             Time zone
-            <input value={timeZone} onChange={(e) => setTimeZone(e.target.value)} style={{ padding: 10, borderRadius: 8, border: '1px solid rgba(0,0,0,0.15)' }} />
+            <input
+              value={timeZone}
+              onChange={(e) => setTimeZone(e.target.value)}
+              style={{
+                padding: 10,
+                borderRadius: 8,
+                border: `1px solid ${palette.border}`,
+                background: palette.bgSecondary,
+                color: palette.text,
+              }}
+            />
           </label>
         </div>
 
@@ -235,8 +279,8 @@ export function TextSchedulingAssistant({
             border: 'none',
             borderRadius: 10,
             padding: '11px 14px',
-            background: '#111827',
-            color: 'white',
+            background: palette.accent,
+            color: palette.accentText,
             fontWeight: 700,
             cursor: loadingSlots ? 'not-allowed' : 'pointer',
             opacity: loadingSlots ? 0.65 : 1,
@@ -245,14 +289,14 @@ export function TextSchedulingAssistant({
         </button>
       </form>
 
-      <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 14, background: 'white', padding: 18 }}>
+      <div style={{ border: `1px solid ${palette.border}`, borderRadius: 14, background: palette.cardBg, color: palette.text, padding: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>{eventTitle}</h2>
-          <span style={{ fontSize: 13, color: '#4b5563' }}>{eventLength} min</span>
+          <span style={{ fontSize: 13, color: palette.textMuted }}>{eventLength} min</span>
         </div>
 
         {!availableSlots.length ? (
-          <p style={{ margin: 0, color: '#6b7280', fontSize: 14 }}>No times loaded yet. Use the form above to fetch availability.</p>
+          <p style={{ margin: 0, color: palette.textMuted, fontSize: 14 }}>No times loaded yet. Use the form above to fetch availability.</p>
         ) : (
           <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
             {availableSlots.map((slotIso) => {
@@ -266,12 +310,13 @@ export function TextSchedulingAssistant({
                     padding: '10px 12px',
                     borderRadius: 10,
                     textAlign: 'left',
-                    border: `1px solid ${isActive ? '#111827' : 'rgba(0,0,0,0.15)'}`,
-                    background: isActive ? '#f3f4f6' : 'white',
+                    border: `1px solid ${isActive ? palette.accent : palette.border}`,
+                    background: isActive ? palette.bgSecondary : palette.bg,
+                    color: palette.text,
                     cursor: 'pointer',
                   }}>
                   <div style={{ fontWeight: 600, fontSize: 14 }}>{formatSlotForDisplay(slotIso, timeZone)}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>{timeZone}</div>
+                  <div style={{ fontSize: 12, color: palette.textMuted }}>{timeZone}</div>
                 </button>
               );
             })}
@@ -279,21 +324,21 @@ export function TextSchedulingAssistant({
         )}
       </div>
 
-      <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 14, background: 'white', padding: 18, display: 'grid', gap: 12 }}>
+      <div style={{ border: `1px solid ${palette.border}`, borderRadius: 14, background: palette.cardBg, color: palette.text, padding: 18, display: 'grid', gap: 12 }}>
         <h3 style={{ margin: 0, fontSize: 17 }}>Confirm booking by text</h3>
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
           <input
             placeholder="Guest name"
             value={guestName}
             onChange={(e) => setGuestName(e.target.value)}
-            style={{ padding: 10, borderRadius: 8, border: '1px solid rgba(0,0,0,0.15)' }}
+            style={{ padding: 10, borderRadius: 8, border: `1px solid ${palette.border}`, background: palette.bgSecondary, color: palette.text }}
           />
           <input
             placeholder="Guest email"
             type="email"
             value={guestEmail}
             onChange={(e) => setGuestEmail(e.target.value)}
-            style={{ padding: 10, borderRadius: 8, border: '1px solid rgba(0,0,0,0.15)' }}
+            style={{ padding: 10, borderRadius: 8, border: `1px solid ${palette.border}`, background: palette.bgSecondary, color: palette.text }}
           />
         </div>
         <textarea
@@ -301,7 +346,7 @@ export function TextSchedulingAssistant({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          style={{ padding: 10, borderRadius: 8, border: '1px solid rgba(0,0,0,0.15)', resize: 'vertical' }}
+          style={{ padding: 10, borderRadius: 8, border: `1px solid ${palette.border}`, background: palette.bgSecondary, color: palette.text, resize: 'vertical' }}
         />
 
         <button
@@ -312,8 +357,8 @@ export function TextSchedulingAssistant({
             border: 'none',
             borderRadius: 10,
             padding: '11px 14px',
-            background: '#0f766e',
-            color: 'white',
+            background: '#d4944e',
+            color: '#1a1008',
             fontWeight: 700,
             cursor: !canBook || booking ? 'not-allowed' : 'pointer',
             opacity: !canBook || booking ? 0.6 : 1,
@@ -322,7 +367,7 @@ export function TextSchedulingAssistant({
         </button>
       </div>
 
-      <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 14, background: 'white', padding: 18 }}>
+      <div style={{ border: `1px solid ${palette.border}`, borderRadius: 14, background: palette.cardBg, color: palette.text, padding: 18 }}>
         <h3 style={{ marginTop: 0, fontSize: 17 }}>Text session log</h3>
         <div style={{ display: 'grid', gap: 8, maxHeight: 260, overflow: 'auto' }}>
           {messages.map((message) => (
@@ -331,8 +376,13 @@ export function TextSchedulingAssistant({
               style={{
                 padding: '10px 12px',
                 borderRadius: 10,
-                background: message.role === 'assistant' ? '#eff6ff' : message.role === 'user' ? '#f3f4f6' : '#fef3c7',
-                border: '1px solid rgba(0,0,0,0.08)',
+                background:
+                  message.role === 'assistant'
+                    ? 'rgba(196,127,58,0.16)'
+                    : message.role === 'user'
+                    ? 'rgba(160,137,110,0.16)'
+                    : 'rgba(212,148,78,0.22)',
+                border: `1px solid ${palette.border}`,
                 fontSize: 14,
               }}>
               <strong style={{ textTransform: 'capitalize', marginRight: 6 }}>{message.role}:</strong>
