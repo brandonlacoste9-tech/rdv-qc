@@ -38,10 +38,10 @@ export default function PlanxoAIDashboardPage() {
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <Link href="/dashboard/voice/agent" style={{ textDecoration: 'none', padding: '8px 12px', borderRadius: 10, border: `1px solid ${tColors.border}`, color: tColors.text, background: tColors.bgSecondary }}>
-                Full text assistant
+              <Link href="/dashboard/voice" style={{ textDecoration: 'none', padding: '8px 12px', borderRadius: 10, border: `1px solid ${tColors.border}`, color: tColors.text, background: tColors.bgSecondary }}>
+                Text assistant
               </Link>
-              <Link href="/demo/voice" style={{ textDecoration: 'none', padding: '8px 12px', borderRadius: 10, background: tColors.accent, color: tColors.accentText, fontWeight: 700 }}>
+              <Link href="/demo/text" style={{ textDecoration: 'none', padding: '8px 12px', borderRadius: 10, background: tColors.accent, color: tColors.accentText, fontWeight: 700 }}>
                 Public text demo
               </Link>
             </div>

@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
         packageId,
         credits: package_.credits.toString(),
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/voice/credits/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/voice/credits`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/voice?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/voice?purchase=cancelled`,
       customer_email: userEmail,
     });
 
