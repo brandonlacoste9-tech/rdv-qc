@@ -213,12 +213,18 @@ export async function DELETE(
       return NextResponse.json({ error: "Event type not found" }, { status: 404 });
     }
 
-    await prisma.eventType.update({
-      where: { id },
-      data: { isActive: false }
-    });
-
-    return NextResponse.json({ status: "success", data: { id } });
+    try {
+      // Always use raw SQL for soft delete
+      const result = await prisma.$executeRaw`UPDATE "EventType" SET "isActive" = false WHERE "id" = ${id}`;
+      // If no rows were updated, fallback to hard delete
+      if (result === 0) {
+        await prisma.$executeRaw`DELETE FROM "EventType" WHERE "id" = ${id}`;
+      }
+      return NextResponse.json({ status: "success", data: { id } });
+    } catch (error: any) {
+      console.error("Error deleting event type (raw SQL):", error);
+      return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    }
   } catch (error: any) {
     console.error("Error deleting event type:", error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
