@@ -215,6 +215,7 @@ export default function EventTypeEditPage({ params }: { params: Promise<{ id: st
                   >
                     <option value="google-meet">Google Meet</option>
                     <option value="zoom">Zoom</option>
+                    <option value="teams">Microsoft Teams</option>
                     <option value="phone">Téléphone</option>
                     <option value="in-person">En personne</option>
                   </select>

@@ -5,6 +5,15 @@ interface BusySlot {
   end: Date;
 }
 
+interface ConnectedCalendarRow {
+  id: string;
+  provider: string;
+  access_token: string | null;
+  refresh_token: string | null;
+  expires_at: string | null;
+  user_id: string;
+}
+
 // ── Google Calendar event creation ──
 
 export interface CreateGoogleCalendarEventParams {
@@ -39,60 +48,12 @@ export async function createGoogleCalendarEvent(
     timeZone = "America/Toronto",
   } = params;
 
-  // 1. Fetch the stored Google credential for this user
-  const { data: cred, error: credErr } = await supabase
-    .from("Credential")
-    .select("*")
-    .eq("userId", userId)
-    .eq("type", "google")
-    .single();
-
-  if (credErr || !cred) {
-    throw new Error(`No Google credential found for userId ${userId}`);
+  const connected = await getConnectedCalendar(userId, "google");
+  if (!connected) {
+    throw new Error(`No Google calendar connected for userId ${userId}`);
   }
 
-  if (!cred.refreshToken) {
-    throw new Error(`Google credential for userId ${userId} has no refresh token`);
-  }
-
-  // 2. Exchange refresh token for a fresh access token
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    throw new Error("GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not configured");
-  }
-
-  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: cred.refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-
-  const tokenData = await tokenRes.json();
-  if (tokenData.error || !tokenData.access_token) {
-    throw new Error(
-      `Failed to refresh Google access token: ${tokenData.error_description || tokenData.error}`
-    );
-  }
-
-  const accessToken: string = tokenData.access_token;
-
-  // Optionally update the stored access token + expiry so future busy-time checks work
-  const expiresAt = tokenData.expires_in
-    ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-    : null;
-  supabase
-    .from("Credential")
-    .update({ accessToken, expiresAt, updatedAt: new Date().toISOString() })
-    .eq("id", cred.id)
-    .then(() => {})
-    .catch(() => {});
+  const accessToken = await ensureConnectedCalendarAccessToken(connected);
 
   // 3. Build the Calendar event body
   const eventBody: Record<string, any> = {
@@ -151,6 +112,80 @@ export async function createGoogleCalendarEvent(
   return calData;
 }
 
+export interface CreateOutlookCalendarEventParams {
+  userId: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  attendeeEmail: string;
+  attendeeName?: string;
+  meetingUrl?: string;
+  timeZone?: string;
+}
+
+export async function createOutlookCalendarEvent(
+  params: CreateOutlookCalendarEventParams
+): Promise<any> {
+  const {
+    userId,
+    title,
+    startTime,
+    endTime,
+    attendeeEmail,
+    attendeeName,
+    meetingUrl,
+    timeZone = "UTC",
+  } = params;
+
+  const connected = await getConnectedCalendar(userId, "outlook");
+  if (!connected) {
+    throw new Error(`No Outlook calendar connected for userId ${userId}`);
+  }
+
+  const accessToken = await ensureConnectedCalendarAccessToken(connected);
+
+  const eventBody: Record<string, any> = {
+    subject: title,
+    body: {
+      contentType: "HTML",
+      content: meetingUrl ? `Meeting link: ${meetingUrl}` : "",
+    },
+    start: { dateTime: startTime, timeZone },
+    end: { dateTime: endTime, timeZone },
+    attendees: [
+      {
+        emailAddress: {
+          address: attendeeEmail,
+          name: attendeeName || attendeeEmail,
+        },
+        type: "required",
+      },
+    ],
+  };
+
+  if (meetingUrl) {
+    eventBody.location = {
+      displayName: meetingUrl,
+    };
+  }
+
+  const res = await fetch("https://graph.microsoft.com/v1.0/me/events", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(eventBody),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`Outlook Calendar API error ${res.status}: ${JSON.stringify(data.error || data)}`);
+  }
+
+  return data;
+}
+
 /**
  * Fetch busy times from connected external calendars.
  * Currently supports Google Calendar and Outlook (Microsoft Graph).
@@ -163,30 +198,131 @@ export async function getExternalBusyTimes(
 ): Promise<BusySlot[]> {
   const busy: BusySlot[] = [];
 
-  // Get stored credentials for the user
-  const { data: creds } = await supabase
-    .from("Credential")
-    .select("*")
-    .eq("userId", userId);
+  const { data: connected } = await supabase
+    .from("connected_calendars")
+    .select("id, provider, access_token, refresh_token, expires_at, user_id")
+    .eq("user_id", userId);
 
-  if (!creds?.length) return busy;
+  const connectedCalendars = (connected || []) as ConnectedCalendarRow[];
+  if (!connectedCalendars.length) return busy;
 
-  for (const cred of creds) {
+  for (const cred of connectedCalendars) {
     try {
-      if (cred.type === "google") {
-        const slots = await getGoogleBusyTimes(cred.accessToken, timeMin, timeMax);
+      const accessToken = await ensureConnectedCalendarAccessToken(cred);
+      if (!accessToken) continue;
+
+      if (cred.provider === "google") {
+        const slots = await getGoogleBusyTimes(accessToken, timeMin, timeMax);
         busy.push(...slots);
-      } else if (cred.type === "outlook") {
-        const slots = await getOutlookBusyTimes(cred.accessToken, timeMin, timeMax);
+      } else if (cred.provider === "outlook") {
+        const slots = await getOutlookBusyTimes(accessToken, timeMin, timeMax);
         busy.push(...slots);
       }
     } catch (e) {
       // Token expired or API error — skip gracefully
-      console.warn(`Could not fetch ${cred.type} calendar:`, e);
+      console.warn(`Could not fetch ${cred.provider} calendar:`, e);
     }
   }
 
   return busy;
+}
+
+async function getConnectedCalendar(userId: string, provider: "google" | "outlook") {
+  const { data } = await supabase
+    .from("connected_calendars")
+    .select("id, provider, access_token, refresh_token, expires_at, user_id")
+    .eq("user_id", userId)
+    .eq("provider", provider)
+    .maybeSingle();
+
+  return (data || null) as ConnectedCalendarRow | null;
+}
+
+function isTokenStale(expiresAt: string | null | undefined) {
+  if (!expiresAt) return false;
+  const expMs = Date.parse(expiresAt);
+  if (Number.isNaN(expMs)) return false;
+  return expMs <= Date.now() + 60_000;
+}
+
+async function ensureConnectedCalendarAccessToken(cred: ConnectedCalendarRow): Promise<string> {
+  const currentToken = cred.access_token || "";
+  if (currentToken && !isTokenStale(cred.expires_at)) {
+    return currentToken;
+  }
+
+  if (!cred.refresh_token) {
+    if (!currentToken) throw new Error(`No usable token for ${cred.provider}`);
+    return currentToken;
+  }
+
+  if (cred.provider === "google") {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    if (!clientId || !clientSecret) throw new Error("Google OAuth client credentials are missing");
+
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: cred.refresh_token,
+        grant_type: "refresh_token",
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.access_token) {
+      throw new Error(`Failed to refresh Google token: ${tokenData.error_description || tokenData.error || tokenRes.status}`);
+    }
+
+    const expiresAt = tokenData.expires_in
+      ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+      : null;
+
+    await supabase
+      .from("connected_calendars")
+      .update({ access_token: tokenData.access_token, expires_at: expiresAt })
+      .eq("id", cred.id);
+
+    return tokenData.access_token;
+  }
+
+  const clientId = process.env.OUTLOOK_CLIENT_ID || process.env.AZURE_CLIENT_ID;
+  const clientSecret = process.env.OUTLOOK_CLIENT_SECRET || process.env.AZURE_CLIENT_SECRET;
+  const tenantId = process.env.AZURE_TENANT_ID || "common";
+  if (!clientId || !clientSecret) throw new Error("Outlook OAuth client credentials are missing");
+
+  const tokenRes = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: cred.refresh_token,
+      grant_type: "refresh_token",
+      scope: "offline_access https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.ReadWrite",
+    }),
+  });
+  const tokenData = await tokenRes.json();
+  if (!tokenRes.ok || !tokenData.access_token) {
+    throw new Error(`Failed to refresh Outlook token: ${tokenData.error_description || tokenData.error || tokenRes.status}`);
+  }
+
+  const expiresAt = tokenData.expires_in
+    ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+    : null;
+
+  await supabase
+    .from("connected_calendars")
+    .update({
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token || cred.refresh_token,
+      expires_at: expiresAt,
+    })
+    .eq("id", cred.id);
+
+  return tokenData.access_token;
 }
 
 async function getGoogleBusyTimes(

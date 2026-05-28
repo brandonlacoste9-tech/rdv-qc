@@ -353,9 +353,9 @@ export async function POST(request: NextRequest) {
       console.error("Email non-bloquant:", emailErr);
     }
 
-    // ── Google Calendar sync (non-blocking) ──
+    // ── External calendar sync (non-blocking): Google + Outlook ──
     try {
-      const { createGoogleCalendarEvent } = await import("@/lib/calendar-sync");
+      const { createGoogleCalendarEvent, createOutlookCalendarEvent } = await import("@/lib/calendar-sync");
       await createGoogleCalendarEvent({
         userId: assignedUserId,
         title: `${eventType?.title || "Rendez-vous"} avec ${guestName}`,
@@ -366,8 +366,19 @@ export async function POST(request: NextRequest) {
         meetingUrl: booking.location || undefined,
         timeZone: "America/Toronto",
       });
+
+      await createOutlookCalendarEvent({
+        userId: assignedUserId,
+        title: `${eventType?.title || "Rendez-vous"} avec ${guestName}`,
+        startTime: booking.startTime || start.toISOString(),
+        endTime: booking.endTime || end.toISOString(),
+        attendeeEmail: guestEmail,
+        attendeeName: guestName,
+        meetingUrl: booking.location || undefined,
+        timeZone: "UTC",
+      });
     } catch (calErr) {
-      console.error("Google Calendar sync failed (non-blocking):", calErr);
+      console.error("External calendar sync failed (non-blocking):", calErr);
     }
 
     const response = NextResponse.json({
