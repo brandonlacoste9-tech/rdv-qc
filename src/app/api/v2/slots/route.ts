@@ -81,6 +81,7 @@ function normalizeTeamMembers(value: unknown, fallbackUserId: string) {
 }
 
 export async function GET(request: NextRequest) {
+
   const { searchParams } = new URL(request.url);
   let eventTypeId = searchParams.get("eventTypeId");
   const eventTypeSlug = searchParams.get("eventTypeSlug");
@@ -88,6 +89,15 @@ export async function GET(request: NextRequest) {
   const timeZone = searchParams.get("timeZone") || "UTC";
   const startTime = searchParams.get("startTime");
   const endTime = searchParams.get("endTime");
+
+  // Validate date format if 'startTime' or 'endTime' is provided
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (startTime && !dateRegex.test(startTime.slice(0, 10))) {
+    return apiError("Invalid startTime format. Use YYYY-MM-DD or ISO string.", 400);
+  }
+  if (endTime && !dateRegex.test(endTime.slice(0, 10))) {
+    return apiError("Invalid endTime format. Use YYYY-MM-DD or ISO string.", 400);
+  }
 
   // Resolve by slug if needed
   if (!eventTypeId && eventTypeSlug) {
@@ -325,15 +335,4 @@ function apiError(message: string, status: number) {
 }
 
 
-// Removed invalid top-level code. Date validation will be handled inside GET.
-  // Validate date format if 'startTime' or 'endTime' is provided
-  const { searchParams } = new URL(request.url);
-  const startTime = searchParams.get("startTime");
-  const endTime = searchParams.get("endTime");
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (startTime && !dateRegex.test(startTime.slice(0, 10))) {
-    return NextResponse.json({ error: "Invalid startTime format. Use YYYY-MM-DD or ISO string." }, { status: 400 });
-  }
-  if (endTime && !dateRegex.test(endTime.slice(0, 10))) {
-    return NextResponse.json({ error: "Invalid endTime format. Use YYYY-MM-DD or ISO string." }, { status: 400 });
-  }
+
