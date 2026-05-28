@@ -92,7 +92,7 @@ async function createEventTypeLegacyInsert(params: {
 }) {
   const id = generateEventTypeId();
   await prisma.$executeRawUnsafe(
-    'INSERT INTO "public"."EventType" ("id", "userId", "title", "slug", "length") VALUES ($1, $2, $3, $4, $5)',
+    'INSERT INTO "public"."EventType" ("id", "userId", "title", "slug", "length", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, NOW(), NOW())',
     id,
     params.userId,
     params.title,
