@@ -86,7 +86,7 @@ function formatBooking(
   const attendeeTimeZone = responses.timeZone || fallback?.attendeeTimeZone || "UTC";
 
   const resolvedLocation =
-    b.location || (Array.isArray(et.locations) ? (et.locations?.[0]?.type || "") : "");
+    b.location || et.location || (Array.isArray(et.locations) ? (et.locations?.[0]?.type || "") : "");
 
   return {
     id: b.id,
