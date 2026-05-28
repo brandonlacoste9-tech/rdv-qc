@@ -175,6 +175,7 @@ export function TextSchedulingAssistant({
               startTime: '09:00:00',
               endTime: '17:00:00',
               isActive: true,
+        const [sameDayOnly, setSameDayOnly] = useState(false);
             },
           ],
         }),
@@ -428,21 +429,25 @@ export function TextSchedulingAssistant({
           addMessage('system', `Showing times from ${matchedDateKey} to match timezone alignment.`);
         }
       } else {
-        try {
-          const nextAvailable = await loadNextAvailableSlots(effectiveUsername, effectiveEventTypeSlug, effectiveTimeZone);
-          if (nextAvailable.slots.length) {
-            setAvailableSlots(nextAvailable.slots);
-            if (nextAvailable.dateKey !== selectedDate) {
-              setSelectedDate(nextAvailable.dateKey);
+        if (!sameDayOnly) {
+          try {
+            const nextAvailable = await loadNextAvailableSlots(effectiveUsername, effectiveEventTypeSlug, effectiveTimeZone);
+            if (nextAvailable.slots.length) {
+              setAvailableSlots(nextAvailable.slots);
+              if (nextAvailable.dateKey !== selectedDate) {
+                setSelectedDate(nextAvailable.dateKey);
+              }
+              addMessage(
+                'assistant',
+                `No free times on ${selectedDate}. Next available times are on ${nextAvailable.dateKey}.`
+              );
+              return;
             }
-            addMessage(
-              'assistant',
-              `No free times on ${selectedDate}. Next available times are on ${nextAvailable.dateKey}.`
-            );
-            return;
+          } catch {
+            // Fall through to existing guidance.
           }
-        } catch {
-          // Fall through to existing guidance.
+        } else {
+          addMessage('assistant', 'No free times found for that date in same-day-only mode. Change the date or disable same-day-only.');
         }
 
         const defaults = await getProfileDefaults();
@@ -465,7 +470,9 @@ export function TextSchedulingAssistant({
         if (defaults?.availabilityKnown && defaults.source === 'authenticated' && !defaults.hasAvailability) {
           addMessage('system', 'No availability schedule is configured yet. I could not auto-create one. Set Availability once, then reload times.');
         } else {
-          addMessage('assistant', 'No free times found for that date. Try a different date.');
+          if (!sameDayOnly) {
+            addMessage('assistant', 'No free times found for that date. Try a different date.');
+          }
         }
       }
     } catch (error: any) {
@@ -673,6 +680,25 @@ export function TextSchedulingAssistant({
             />
           </label>
         </div>
+
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 13,
+            color: palette.text,
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}>
+          <input
+            type="checkbox"
+            checked={sameDayOnly}
+            onChange={(e) => setSameDayOnly(e.target.checked)}
+            style={{ width: 16, height: 16 }}
+          />
+          Same day only (disable auto look-ahead)
+        </label>
 
         <button
           type="submit"
