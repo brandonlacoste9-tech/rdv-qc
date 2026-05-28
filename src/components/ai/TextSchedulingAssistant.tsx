@@ -50,6 +50,7 @@ type MeResponse = {
   username?: string | null;
   timeZone?: string | null;
   eventTypes?: Array<{ slug?: string | null; isActive?: boolean | null }>;
+  schedules?: Array<{ intervals?: unknown[] }>;
 };
 
 type ProfileDefaults = {
@@ -57,6 +58,9 @@ type ProfileDefaults = {
   eventTypeSlug: string;
   timeZone: string;
   activeEventTypeCount: number;
+  hasAvailability: boolean;
+  availabilityKnown: boolean;
+  source: 'authenticated' | 'public';
 };
 
 function toDateInputValue(date: Date) {
@@ -92,6 +96,7 @@ export function TextSchedulingAssistant({
   const userEditedEventSlugRef = useRef(false);
   const userEditedTimeZoneRef = useRef(false);
   const attemptedProvisionRef = useRef(false);
+  const attemptedAvailabilityProvisionRef = useRef(false);
   const [username, setUsername] = useState(defaultUsername);
   const [eventTypeSlug, setEventTypeSlug] = useState(defaultEventTypeSlug);
   const [selectedDate, setSelectedDate] = useState(toDateInputValue(new Date()));
@@ -146,6 +151,34 @@ export function TextSchedulingAssistant({
     }
   }, []);
 
+  const provisionDefaultAvailability = useCallback(async (timeZoneHint: string) => {
+    if (attemptedAvailabilityProvisionRef.current) return false;
+    attemptedAvailabilityProvisionRef.current = true;
+
+    try {
+      const res = await fetch('/api/availability', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scheduleName: 'Working Hours',
+          timezone: timeZoneHint || 'America/Toronto',
+          intervals: [
+            {
+              days: [1, 2, 3, 4, 5],
+              startTime: '09:00:00',
+              endTime: '17:00:00',
+              isActive: true,
+            },
+          ],
+        }),
+      });
+
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const getProfileDefaults = useCallback(async (usernameHint?: string): Promise<ProfileDefaults | null> => {
     const endpoints = ['/api/v2/me'];
     if (usernameHint) {
@@ -157,8 +190,11 @@ export function TextSchedulingAssistant({
         const res = await fetch(endpoint, { cache: 'no-store' });
         if (!res.ok) continue;
 
-        const data = (await res.json()) as MeResponse;
+        let data = (await res.json()) as MeResponse;
+        const isAuthenticatedProfile = endpoint === '/api/v2/me' && !usernameHint;
         const activeEventTypeCount = Array.isArray(data.eventTypes) ? data.eventTypes.length : 0;
+        const schedules = Array.isArray(data.schedules) ? data.schedules : [];
+        const hasAvailability = schedules.some((schedule) => Array.isArray(schedule?.intervals) && schedule.intervals.length > 0);
 
         let suggestedSlug =
           data.eventTypes?.find((eventType) => eventType?.isActive !== false && typeof eventType?.slug === 'string' && eventType.slug.length > 0)
@@ -166,12 +202,28 @@ export function TextSchedulingAssistant({
           data.eventTypes?.find((eventType) => typeof eventType?.slug === 'string' && eventType.slug.length > 0)?.slug ||
           '';
 
-        if (!suggestedSlug && endpoint === '/api/v2/me' && !usernameHint) {
+        if (!suggestedSlug && isAuthenticatedProfile) {
           const provisionedSlug = await provisionDefaultEventType();
           if (provisionedSlug) {
             suggestedSlug = provisionedSlug;
           }
         }
+
+        if (isAuthenticatedProfile && !hasAvailability) {
+          const didProvision = await provisionDefaultAvailability(data.timeZone || 'America/Toronto');
+          if (didProvision) {
+            const refreshedRes = await fetch('/api/v2/me', { cache: 'no-store' });
+            if (refreshedRes.ok) {
+              data = (await refreshedRes.json()) as MeResponse;
+            }
+          }
+        }
+
+        const refreshedActiveEventTypeCount = Array.isArray(data.eventTypes) ? data.eventTypes.length : activeEventTypeCount;
+        const refreshedSchedules = Array.isArray(data.schedules) ? data.schedules : [];
+        const refreshedHasAvailability = refreshedSchedules.some(
+          (schedule) => Array.isArray(schedule?.intervals) && schedule.intervals.length > 0
+        );
 
         const resolvedUsername = data.username || usernameHint || '';
         if (!resolvedUsername && !suggestedSlug && !data.timeZone && activeEventTypeCount === 0) {
@@ -182,7 +234,10 @@ export function TextSchedulingAssistant({
           username: resolvedUsername,
           eventTypeSlug: suggestedSlug,
           timeZone: data.timeZone || '',
-          activeEventTypeCount,
+          activeEventTypeCount: refreshedActiveEventTypeCount,
+          hasAvailability: refreshedHasAvailability,
+          availabilityKnown: isAuthenticatedProfile,
+          source: isAuthenticatedProfile ? 'authenticated' : 'public',
         };
       } catch {
         // Try next endpoint candidate.
@@ -190,7 +245,7 @@ export function TextSchedulingAssistant({
     }
 
     return null;
-  }, [provisionDefaultEventType]);
+  }, [provisionDefaultAvailability, provisionDefaultEventType]);
 
   const pickSlotsForDate = (slotMap: Record<string, string[]> | undefined, selectedDateKey: string) => {
     if (!slotMap) {
@@ -323,7 +378,28 @@ export function TextSchedulingAssistant({
           addMessage('system', `Showing times from ${matchedDateKey} to match timezone alignment.`);
         }
       } else {
-        addMessage('assistant', 'No free times found for that date. Try a different date.');
+        const defaults = await getProfileDefaults();
+        if (defaults?.availabilityKnown && defaults.source === 'authenticated' && defaults.hasAvailability) {
+          try {
+            const retry = await loadSlotsForDate(effectiveUsername, effectiveEventTypeSlug, effectiveTimeZone);
+            if (retry.slots.length) {
+              setAvailableSlots(retry.slots);
+              addMessage('assistant', `Default working hours loaded. Found ${retry.slots.length} available times.`);
+              if (retry.matchedDateKey !== selectedDate) {
+                addMessage('system', `Showing times from ${retry.matchedDateKey} to match timezone alignment.`);
+              }
+              return;
+            }
+          } catch {
+            // Keep the empty-state guidance below.
+          }
+        }
+
+        if (defaults?.availabilityKnown && defaults.source === 'authenticated' && !defaults.hasAvailability) {
+          addMessage('system', 'No availability schedule is configured yet. I could not auto-create one. Set Availability once, then reload times.');
+        } else {
+          addMessage('assistant', 'No free times found for that date. Try a different date.');
+        }
       }
     } catch (error: any) {
       const message = error?.message || 'Failed to load slots.';
