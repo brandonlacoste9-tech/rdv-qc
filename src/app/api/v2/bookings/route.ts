@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -79,16 +80,46 @@ export async function POST(request: NextRequest) {
     let userId: string | null = null;
 
     if (!eventTypeId && body.eventTypeSlug) {
+      let resolvedUserId: string | null = null;
+
       const { data: user } = await supabase
-        .from("users").select("id").eq("username", body.username || "planxo").single();
-      if (!user) return apiError("User not found", 404);
+        .from("users")
+        .select("id")
+        .eq("username", body.username || "planxo")
+        .maybeSingle();
+
+      if (user?.id) {
+        resolvedUserId = user.id;
+      } else {
+        // Fallback to Prisma for environments where the public booking flow is sourced from Prisma users.
+        const prismaUser = await prisma.user.findUnique({
+          where: { username: body.username || "planxo" },
+          select: { id: true },
+        });
+        resolvedUserId = prismaUser?.id || null;
+      }
+
+      if (!resolvedUserId) return apiError("User not found", 404);
 
       const { data: et } = await supabase
-        .from("EventType").select("*").eq("slug", body.eventTypeSlug).eq("userId", user.id).single();
-      if (!et) return apiError("Event type not found", 404);
+        .from("EventType")
+        .select("*")
+        .eq("slug", body.eventTypeSlug)
+        .eq("userId", resolvedUserId)
+        .maybeSingle();
 
-      eventTypeId = et.id;
-      userId = user.id;
+      if (!et) {
+        const prismaEventType = await prisma.eventType.findFirst({
+          where: { slug: body.eventTypeSlug, userId: resolvedUserId },
+          select: { id: true },
+        });
+        if (!prismaEventType) return apiError("Event type not found", 404);
+        eventTypeId = prismaEventType.id;
+      } else {
+        eventTypeId = et.id;
+      }
+
+      userId = resolvedUserId;
     }
 
     if (!eventTypeId) return apiError("eventTypeId or eventTypeSlug required", 400);
