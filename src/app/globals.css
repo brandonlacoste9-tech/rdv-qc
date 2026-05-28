@@ -5,36 +5,35 @@ html {
 }
 
 :root {
-  --bg-base: #06080f;
-  --bg-card: rgba(17, 24, 39, 0.6);
-  --gold: #d4a853;
-  --gold-light: #f0c060;
-  --gold-dim: rgba(212, 168, 83, 0.12);
-  --cyan: #06b6d4;
-  --green: #10b981;
-  --red: #ef4444;
+  --bg-base: #1a140f;
+  --bg-card: #1f160f;
+  --gold: #c47f3a;
+  --gold-light: #d4944e;
+  --gold-dim: rgba(196, 127, 58, 0.16);
+  --green: #c47f3a;
+  --red: #d4944e;
 }
 
 body {
   background: var(--bg-base);
-  color: #e2e8f0;
+  color: #e8d5c4;
   font-family: system-ui, -apple-system, sans-serif;
 }
 
 body::before {
   content: '';
   position: fixed; inset: 0;
-  background: radial-gradient(ellipse 500px 400px at 30% 20%, rgba(212,168,83,0.06), transparent 70%),
-              radial-gradient(ellipse 400px 300px at 70% 80%, rgba(6,182,212,0.04), transparent 70%);
+  background: radial-gradient(ellipse 500px 400px at 30% 20%, rgba(196,127,58,0.12), transparent 70%),
+              radial-gradient(ellipse 400px 300px at 70% 80%, rgba(212,148,78,0.1), transparent 70%);
   pointer-events: none; z-index: 0;
 }
 
 .card-glass {
-  background: rgba(17, 24, 39, 0.5);
+  background: rgba(31, 22, 15, 0.72);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(212, 168, 83, 0.08);
+  border: 1px solid rgba(196, 127, 58, 0.18);
   border-radius: 16px;
-  box-shadow: 0 4px 32px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 32px rgba(0,0,0,0.4);
 }
 
 .gold-gradient {
@@ -44,8 +43,8 @@ body::before {
 }
 
 .gold-btn {
-  background: linear-gradient(135deg, #d4a853, #f0c060);
-  color: #06080f;
+  background: linear-gradient(135deg, #c47f3a, #d4944e);
+  color: #1a1008;
   font-weight: 600;
   border-radius: 12px;
   padding: 12px 24px;
@@ -58,12 +57,12 @@ body::before {
 
 .ghost-btn {
   background: transparent;
-  color: #e2e8f0;
-  border: 1px solid rgba(255,255,255,0.1);
+  color: #e8d5c4;
+  border: 1px solid rgba(196,127,58,0.25);
   border-radius: 12px;
   padding: 12px 24px;
   font-weight: 600;
   transition: all 0.2s;
   cursor: pointer;
 }
-.ghost-btn:hover { border-color: var(--gold); color: var(--gold); }
+.ghost-btn:hover { border-color: var(--gold-light); color: var(--gold-light); }

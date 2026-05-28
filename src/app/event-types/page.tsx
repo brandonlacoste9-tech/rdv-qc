@@ -34,7 +34,7 @@ const LOCATIONS = [
   { value: "in-person", label: "In-person" },
 ];
 
-const COLORS = ["#242424", "#4f46e5", "#059669", "#d97706", "#dc2626", "#7c3aed", "#0891b2", "#be185d"];
+const COLORS = ["#c47f3a", "#d4944e", "#a86b32", "#8f5a2b", "#e0ad6b", "#7c4d26", "#b07237", "#8c633f"];
 
 function emptyForm() {
   return {
@@ -43,7 +43,7 @@ function emptyForm() {
     description: "",
     length: 30,
     location: "google-meet",
-    color: "#242424",
+    color: "#c47f3a",
     price: 0,
     currency: "cad",
     bufferBefore: 0,
@@ -93,7 +93,7 @@ export default function EventTypesPage() {
       description: et.description || "",
       length: et.length || 30,
       location: et.location || "google-meet",
-      color: et.color || "#242424",
+      color: et.color || "#c47f3a",
       price: et.price || 0,
       currency: et.currency || "cad",
       bufferBefore: et.bufferBefore ?? 0,
@@ -240,11 +240,11 @@ export default function EventTypesPage() {
                       width: 40,
                       height: 40,
                       borderRadius: 10,
-                      background: et.color || "#242424",
+                      background: et.color || colors.accent,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: "#fff",
+                      color: colors.accentText,
                       fontWeight: 700,
                       fontSize: 16,
                       flexShrink: 0,
@@ -359,15 +359,15 @@ export default function EventTypesPage() {
                       gap: 6,
                       padding: "8px 12px",
                       background: "transparent",
-                      border: `1px solid #ef4444`,
+                      border: `1px solid ${colors.accentHover}`,
                       borderRadius: 8,
-                      color: "#ef4444",
+                      color: colors.accentHover,
                       cursor: "pointer",
                       fontSize: 12,
                       transition: "all 0.2s",
                     }}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.background = "#ef444420";
+                      (e.currentTarget as HTMLElement).style.background = `${colors.accentHover}20`;
                     }}
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLElement).style.background = "transparent";
@@ -389,7 +389,7 @@ export default function EventTypesPage() {
               style={{
                 position: "fixed",
                 inset: 0,
-                background: "rgba(0,0,0,0.5)",
+                background: "rgba(26,16,8,0.72)",
                 zIndex: 50,
                 display: "flex",
                 alignItems: "center",

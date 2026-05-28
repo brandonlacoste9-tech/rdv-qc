@@ -262,13 +262,13 @@ export default function AvailabilityPage() {
             style={{
               marginBottom: 16,
               padding: 14,
-              background: "#ef444420",
-              border: `1px solid #ef4444`,
+              background: `${colors.accentHover}20`,
+              border: `1px solid ${colors.accentHover}`,
               borderRadius: 10,
               display: "flex",
               alignItems: "center",
               gap: 10,
-              color: "#ef4444",
+              color: colors.accentHover,
               fontSize: 13,
             }}
           >
@@ -282,13 +282,13 @@ export default function AvailabilityPage() {
             style={{
               marginBottom: 16,
               padding: 14,
-              background: "#22c55e20",
-              border: `1px solid #22c55e`,
+              background: `${colors.accent}20`,
+              border: `1px solid ${colors.accent}`,
               borderRadius: 10,
               display: "flex",
               alignItems: "center",
               gap: 10,
-              color: "#22c55e",
+              color: colors.accent,
               fontSize: 13,
             }}
           >
@@ -393,7 +393,7 @@ export default function AvailabilityPage() {
                             width: 20,
                             height: 20,
                             borderRadius: "50%",
-                            background: "#fff",
+                            background: colors.cardBg,
                             transition: "left 0.2s",
                             left: schedule[idx]?.enabled ? 22 : 2,
                           }}
@@ -553,16 +553,16 @@ export default function AvailabilityPage() {
                               padding: "4px 8px",
                               background: "transparent",
                               border: "none",
-                              color: "#ef4444",
+                              color: colors.accentHover,
                               cursor: "pointer",
                               marginLeft: "auto",
                               transition: "all 0.2s",
                             }}
                             onMouseEnter={(e) => {
-                              (e.currentTarget as HTMLElement).style.color = "#dc2626";
+                              (e.currentTarget as HTMLElement).style.color = colors.accent;
                             }}
                             onMouseLeave={(e) => {
-                              (e.currentTarget as HTMLElement).style.color = "#ef4444";
+                              (e.currentTarget as HTMLElement).style.color = colors.accentHover;
                             }}
                           >
                             <Trash2 size={14} />

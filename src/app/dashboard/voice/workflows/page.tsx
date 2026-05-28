@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { WORKFLOW_TEMPLATES, MESSAGE_VARIABLES, previewMessage } from '../../../../lib/voice/workflows';
+import { themes } from '@/lib/theme';
 
 interface Workflow {
   id: string;
@@ -15,6 +16,7 @@ interface Workflow {
 }
 
 export default function WorkflowsPage() {
+  const c = themes.cognac;
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -113,23 +115,23 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24, color: c.text }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <a href="/dashboard/voice" style={{ color: '#6b7280', textDecoration: 'none' }}>
+        <a href="/dashboard/voice" style={{ color: c.textMuted, textDecoration: 'none' }}>
           ← Back to Voice Agent
         </a>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 700 }}>Call Workflows</h1>
-            <p style={{ color: '#6b7280' }}>Automate AI phone calls based on triggers</p>
+            <p style={{ color: c.textMuted }}>Automate AI phone calls based on triggers</p>
           </div>
           <button
             onClick={() => setShowCreate(true)}
             style={{
               padding: '12px 24px',
-              background: '#242424',
-              color: '#fff',
+              background: c.accent,
+              color: c.accentText,
               border: 'none',
               borderRadius: 8,
               fontWeight: 600,
@@ -143,20 +145,20 @@ export default function WorkflowsPage() {
 
       {/* Workflows List */}
       {loading ? (
-        <p>Loading...</p>
+        <p style={{ color: c.textMuted }}>Loading...</p>
       ) : workflows.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, background: '#f9fafb', borderRadius: 12 }}>
+        <div style={{ textAlign: 'center', padding: 60, background: c.cardBg, borderRadius: 12, border: `1px solid ${c.border}` }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📩</div>
           <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>No workflows yet</h3>
-          <p style={{ color: '#6b7280', marginBottom: 24 }}>
+          <p style={{ color: c.textMuted, marginBottom: 24 }}>
             Create your first automated call workflow
           </p>
           <button
             onClick={() => setShowCreate(true)}
             style={{
               padding: '12px 24px',
-              background: '#242424',
-              color: '#fff',
+              background: c.accent,
+              color: c.accentText,
               border: 'none',
               borderRadius: 8,
               fontWeight: 600,
@@ -172,10 +174,11 @@ export default function WorkflowsPage() {
             <div
               key={workflow.id}
               style={{
-                background: '#fff',
-                border: '1px solid #e5e7eb',
+                  background: c.cardBg,
+                  border: `1px solid ${c.border}`,
                 borderRadius: 12,
-                padding: 24
+                  padding: 24,
+                  color: c.text,
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -187,14 +190,14 @@ export default function WorkflowsPage() {
                       borderRadius: 20,
                       fontSize: 12,
                       fontWeight: 500,
-                      background: workflow.is_active ? '#d1fae5' : '#f3f4f6',
-                      color: workflow.is_active ? '#065f46' : '#6b7280'
+                      background: workflow.is_active ? `${c.accent}22` : c.bgSecondary,
+                      color: workflow.is_active ? c.accent : c.textMuted
                     }}>
                       {workflow.is_active ? 'Active' : 'Paused'}
                     </span>
                   </div>
-                  <p style={{ color: '#6b7280', marginBottom: 8 }}>{workflow.description}</p>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 14, color: '#6b7280' }}>
+                  <p style={{ color: c.textMuted, marginBottom: 8 }}>{workflow.description}</p>
+                  <div style={{ display: 'flex', gap: 16, fontSize: 14, color: c.textMuted }}>
                     <span>🕐 {formatTiming(workflow.trigger_timing)}</span>
                     <span>📞 {workflow.trigger_count} calls made</span>
                   </div>
@@ -219,14 +222,16 @@ export default function WorkflowsPage() {
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.5)',
+          background: 'rgba(26,16,8,0.72)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 100
         }}>
           <div style={{
-            background: '#fff',
+            background: c.cardBg,
+            color: c.text,
+            border: `1px solid ${c.border}`,
             borderRadius: 16,
             padding: 32,
             maxWidth: 600,
@@ -254,14 +259,14 @@ export default function WorkflowsPage() {
                       }}
                       style={{
                         padding: 16,
-                        border: `2px solid ${selectedTemplate.id === template.id ? '#242424' : '#e5e7eb'}`,
+                        border: `2px solid ${selectedTemplate.id === template.id ? c.accent : c.border}`,
                         borderRadius: 8,
                         cursor: 'pointer',
-                        background: selectedTemplate.id === template.id ? '#f9fafb' : '#fff'
+                        background: selectedTemplate.id === template.id ? c.bgSecondary : c.cardBg
                       }}
                     >
                       <div style={{ fontWeight: 600 }}>{template.name}</div>
-                      <div style={{ fontSize: 14, color: '#6b7280' }}>{template.description}</div>
+                      <div style={{ fontSize: 14, color: c.textMuted }}>{template.description}</div>
                     </div>
                   ))}
                 </div>
@@ -279,7 +284,9 @@ export default function WorkflowsPage() {
                   style={{
                     width: '100%',
                     padding: 12,
-                    border: '1px solid #e5e7eb',
+                    border: `1px solid ${c.border}`,
+                    background: c.bgSecondary,
+                    color: c.text,
                     borderRadius: 8,
                     fontSize: 16
                   }}
@@ -297,7 +304,9 @@ export default function WorkflowsPage() {
                   style={{
                     width: '100%',
                     padding: 12,
-                    border: '1px solid #e5e7eb',
+                    border: `1px solid ${c.border}`,
+                    background: c.bgSecondary,
+                    color: c.text,
                     borderRadius: 8,
                     fontSize: 16
                   }}
@@ -316,7 +325,9 @@ export default function WorkflowsPage() {
                   style={{
                     width: '100%',
                     padding: 12,
-                    border: '1px solid #e5e7eb',
+                    border: `1px solid ${c.border}`,
+                    background: c.bgSecondary,
+                    color: c.text,
                     borderRadius: 8,
                     fontSize: 16
                   }}
@@ -333,23 +344,25 @@ export default function WorkflowsPage() {
                   style={{
                     width: '100%',
                     padding: 12,
-                    border: '1px solid #e5e7eb',
+                    border: `1px solid ${c.border}`,
+                    background: c.bgSecondary,
+                    color: c.text,
                     borderRadius: 8,
                     fontSize: 16,
                     resize: 'vertical'
                   }}
                 />
-                <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
+                <div style={{ marginTop: 8, fontSize: 12, color: c.textMuted }}>
                   Variables: {MESSAGE_VARIABLES.map(v => v.key).join(', ')}
                 </div>
               </div>
 
               {/* Preview */}
-              <div style={{ marginBottom: 24, padding: 16, background: '#f9fafb', borderRadius: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase' }}>
+              <div style={{ marginBottom: 24, padding: 16, background: c.bgSecondary, border: `1px solid ${c.border}`, borderRadius: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: c.textMuted, marginBottom: 8, textTransform: 'uppercase' }}>
                   Preview
                 </div>
-                <div style={{ fontStyle: 'italic', color: '#374151' }}>
+                <div style={{ fontStyle: 'italic', color: c.text }}>
                   {previewMessage(formData.messageTemplate, {
                     '{{attendeeName}}': 'Marie',
                     '{{eventTitle}}': 'Consultation',
@@ -367,8 +380,8 @@ export default function WorkflowsPage() {
                   onClick={() => setShowCreate(false)}
                   style={{
                     padding: '12px 24px',
-                    background: '#f3f4f6',
-                    color: '#242424',
+                    background: c.bgSecondary,
+                    color: c.text,
                     border: 'none',
                     borderRadius: 8,
                     fontWeight: 600,
@@ -382,8 +395,8 @@ export default function WorkflowsPage() {
                   disabled={creating}
                   style={{
                     padding: '12px 24px',
-                    background: '#242424',
-                    color: '#fff',
+                    background: c.accent,
+                    color: c.accentText,
                     border: 'none',
                     borderRadius: 8,
                     fontWeight: 600,

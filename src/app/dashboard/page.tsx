@@ -216,15 +216,15 @@ export default function DashboardPage() {
               <div style={{ fontSize: 12, color: colors.textMuted, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>
                 Confirmed
               </div>
-              <div style={{ fontSize: 40, fontWeight: 700, color: "#22c55e", marginTop: 12 }}>
+              <div style={{ fontSize: 40, fontWeight: 700, color: colors.accent, marginTop: 12 }}>
                 {confirmedCount}
               </div>
               <p style={{ fontSize: 13, color: colors.textMuted, margin: "8px 0 0" }}>
                 Confirmed appointments
               </p>
             </div>
-            <div style={{ width: 48, height: 48, background: "#22c55e20", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <CheckCircle size={24} color="#22c55e" />
+            <div style={{ width: 48, height: 48, background: `${colors.accent}20`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CheckCircle size={24} color={colors.accent} />
             </div>
           </div>
         </div>
@@ -286,11 +286,11 @@ export default function DashboardPage() {
                         width: 36,
                         height: 36,
                         borderRadius: 8,
-                        background: et.color || "#242424",
+                        background: et.color || colors.accent,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        color: "#fff",
+                        color: colors.accentText,
                         fontWeight: 700,
                         fontSize: 14,
                         flexShrink: 0,
@@ -538,7 +538,7 @@ export default function DashboardPage() {
               style={{
                 position: "fixed",
                 inset: 0,
-                background: "rgba(0,0,0,0.5)",
+                background: "rgba(26,16,8,0.72)",
                 zIndex: 50,
                 display: "flex",
                 alignItems: "center",

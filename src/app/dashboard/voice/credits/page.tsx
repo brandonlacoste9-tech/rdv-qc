@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
+import { themes } from '@/lib/theme';
 
 interface CreditPackage {
   id: string;
@@ -40,6 +40,7 @@ const CREDIT_PACKAGES: CreditPackage[] = [
 ];
 
 export default function CreditsPage() {
+  const c = themes.cognac;
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
@@ -98,33 +99,33 @@ export default function CreditsPage() {
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24, color: c.text }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <a href="/dashboard/voice" style={{ color: '#6b7280', textDecoration: 'none' }}>
+        <a href="/dashboard/voice" style={{ color: c.textMuted, textDecoration: 'none' }}>
           ← Back to Voice Agent
         </a>
         <h1 style={{ fontSize: 28, fontWeight: 700, marginTop: 16 }}>
           Voice Credits
         </h1>
-        <p style={{ color: '#6b7280' }}>
+        <p style={{ color: c.textMuted }}>
           Purchase credits to make AI phone calls
         </p>
       </div>
 
       {/* Balance Card */}
       <div style={{
-        background: 'linear-gradient(135deg, #1a1008, #241810)',
-        border: '1px solid rgba(196,127,58,0.3)',
+        background: `linear-gradient(135deg, ${c.bg}, ${c.bgSecondary})`,
+        border: `1px solid ${c.border}`,
         borderRadius: 16,
         padding: 32,
         marginBottom: 32,
-        color: '#e8d5c4'
+        color: c.text
       }}>
         <div style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.7 }}>
           Current Balance
         </div>
-        <div style={{ fontSize: 48, fontWeight: 700, marginTop: 8, color: '#c8a96e' }}>
+        <div style={{ fontSize: 48, fontWeight: 700, marginTop: 8, color: c.accent }}>
           {loading ? 'Loading...' : formatCredits(balance || 0)}
         </div>
         <div style={{ marginTop: 8, opacity: 0.7 }}>
@@ -140,7 +141,7 @@ export default function CreditsPage() {
         <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>
           Purchase Credits
         </h2>
-        <p style={{ color: '#6b7280' }}>
+        <p style={{ color: c.textMuted }}>
           Choose a package. Credits never expire.
         </p>
       </div>
@@ -156,11 +157,12 @@ export default function CreditsPage() {
           <div
             key={pkg.id}
             style={{
-              background: '#fff',
-              border: `2px solid ${pkg.popular ? '#c8a96e' : '#e5e7eb'}`,
+              background: c.cardBg,
+              border: `2px solid ${pkg.popular ? c.accent : c.border}`,
               borderRadius: 12,
               padding: 24,
-              position: 'relative'
+              position: 'relative',
+              color: c.text,
             }}
           >
             {pkg.popular && (
@@ -169,8 +171,8 @@ export default function CreditsPage() {
                 top: -12,
                 left: '50%',
                 transform: 'translateX(-50%)',
-                background: '#c8a96e',
-                color: '#1a1208',
+                background: c.accent,
+                color: c.accentText,
                 padding: '4px 16px',
                 borderRadius: 20,
                 fontSize: 12,
@@ -188,17 +190,17 @@ export default function CreditsPage() {
               {formatCredits(pkg.price)}
             </div>
             
-            <div style={{ color: '#6b7280', marginBottom: 16 }}>
+            <div style={{ color: c.textMuted, marginBottom: 16 }}>
               {pkg.credits.toLocaleString()} credits
             </div>
             
             <div style={{
-              background: '#f3f4f6',
+              background: c.bgSecondary,
               borderRadius: 8,
               padding: 12,
               marginBottom: 16,
               fontSize: 14,
-              color: '#6b7280'
+              color: c.textMuted
             }}>
               {pkg.description}
             </div>
@@ -209,8 +211,8 @@ export default function CreditsPage() {
               style={{
                 width: '100%',
                 padding: '12px 24px',
-                background: pkg.popular ? '#c8a96e' : '#242424',
-                color: pkg.popular ? '#1a1208' : '#fff',
+                background: pkg.popular ? c.accent : c.bgSecondary,
+                color: pkg.popular ? c.accentText : c.text,
                 border: 'none',
                 borderRadius: 8,
                 fontSize: 16,
@@ -227,15 +229,15 @@ export default function CreditsPage() {
 
       {/* Info */}
       <div style={{
-        background: '#f9fafb',
-        border: '1px solid #e5e7eb',
+        background: c.cardBg,
+        border: `1px solid ${c.border}`,
         borderRadius: 12,
         padding: 24
       }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
           How Credits Work
         </h3>
-        <ul style={{ color: '#6b7280', paddingLeft: 20, lineHeight: 1.8 }}>
+        <ul style={{ color: c.textMuted, paddingLeft: 20, lineHeight: 1.8 }}>
           <li>1 credit = $0.01 USD</li>
           <li>Calls cost ~$0.15 per minute (15 credits)</li>
           <li>Credits are deducted in real-time during calls</li>

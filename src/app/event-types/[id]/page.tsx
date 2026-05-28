@@ -26,11 +26,11 @@ const C = {
   text: "#f5e6c8",
   textMuted: "rgba(245,230,200,0.55)",
   textDim: "rgba(245,230,200,0.35)",
-  success: "#4ade80",
-  successBg: "rgba(74,222,128,0.1)",
-  successBorder: "rgba(74,222,128,0.25)",
-  error: "#f87171",
-  errorBg: "rgba(248,113,113,0.1)",
+  success: "#c8a96e",
+  successBg: "rgba(200,169,110,0.12)",
+  successBorder: "rgba(200,169,110,0.3)",
+  error: "#d4944e",
+  errorBg: "rgba(212,148,78,0.12)",
 };
 
 export default function EventTypeEditPage({ params }: { params: Promise<{ id: string }> }) {

@@ -84,7 +84,7 @@ export default function BookingsPage() {
           {loading ? (
             <div style={{ padding: 24, color: colors.textMuted }}>Loading bookings...</div>
           ) : error ? (
-            <div style={{ padding: 24, color: "#ef4444" }}>{error}</div>
+            <div style={{ padding: 24, color: colors.accentHover }}>{error}</div>
           ) : bookings.length === 0 ? (
             <div style={{ padding: 24, color: colors.textMuted }}>
               No upcoming bookings yet.
@@ -123,8 +123,8 @@ export default function BookingsPage() {
                         borderRadius: 999,
                         fontSize: 12,
                         fontWeight: 600,
-                        background: booking.status === "accepted" ? "#22c55e20" : "#f59e0b20",
-                        color: booking.status === "accepted" ? "#22c55e" : "#f59e0b",
+                        background: booking.status === "accepted" ? `${colors.accent}20` : `${colors.border}`,
+                        color: booking.status === "accepted" ? colors.accent : colors.textMuted,
                       }}
                     >
                       {booking.status}

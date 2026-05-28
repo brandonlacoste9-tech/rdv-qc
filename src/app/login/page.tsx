@@ -71,7 +71,7 @@ function LoginForm() {
 
         {message && (
           <div style={{
-            background: "#ecfdf5", color: "#059669", padding: "12px 16px", borderRadius: 8,
+            background: `${colors.accent}1f`, color: colors.accent, padding: "12px 16px", borderRadius: 8,
             fontSize: 13, marginBottom: 16, textAlign: "center",
           }}>{message}</div>
         )}
@@ -124,7 +124,7 @@ function LoginForm() {
             }}
           />
 
-          {error && <p style={{ color: "#e74c3c", fontSize: 13, marginBottom: 12 }}>{error}</p>}
+          {error && <p style={{ color: colors.accentHover, fontSize: 13, marginBottom: 12 }}>{error}</p>}
 
           <button
             type="submit"
@@ -158,7 +158,7 @@ function LoginForm() {
           Fait au Québec • Pour le Québec
         </p>
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `.google-btn:hover { background: #f9fafb; border-color: rgba(0,0,0,0.2); }` }} />
+      <style dangerouslySetInnerHTML={{ __html: `.google-btn:hover { background: ${colors.bgSecondary}; border-color: ${colors.accent}; }` }} />
     </div>
   );
 }
@@ -166,8 +166,8 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f9fafb"}}>
-        <p style={{fontSize:14,color:"#898989"}}>Chargement...</p>
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#1a140f"}}>
+        <p style={{fontSize:14,color:"#a0896e"}}>Chargement...</p>
       </div>
     }>
       <LoginForm />
