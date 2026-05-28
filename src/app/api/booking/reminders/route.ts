@@ -54,6 +54,25 @@ function renderTemplate(template: string, vars: Record<string, string>) {
   return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key: string) => vars[key] || '');
 }
 
+function toPlainObject(value: unknown): Record<string, any> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, any>;
+  }
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, any>;
+      }
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+}
+
 async function sendSmsReminder(to: string, message: string) {
   const sid = process.env.TWILIO_ACCOUNT_SID!;
   const token = process.env.TWILIO_AUTH_TOKEN!;
@@ -246,10 +265,11 @@ export async function POST(request: NextRequest) {
           message: prefs.sms2h?.message || DEFAULT_TEMPLATES.sms2h.message,
         };
 
-        const attendeeEmail = booking.responses?.email || booking.guestEmail;
-        const attendeePhone = booking.smsReminderNumber || booking.responses?.phone || booking.responses?.phoneNumber;
-        const attendeeName = booking.responses?.name || booking.guestName || 'there';
-        const attendeeTz = booking.responses?.timeZone || user.timeZone || 'America/Toronto';
+        const bookingResponses = toPlainObject(booking.responses);
+        const attendeeEmail = bookingResponses.email || booking.guestEmail;
+        const attendeePhone = booking.smsReminderNumber || bookingResponses.phone || bookingResponses.phoneNumber;
+        const attendeeName = bookingResponses.name || booking.guestName || 'there';
+        const attendeeTz = bookingResponses.timeZone || user.timeZone || 'America/Toronto';
         const { date, time } = formatDateTimeInZone(bookingStart, attendeeTz);
 
         const templateVars = {
