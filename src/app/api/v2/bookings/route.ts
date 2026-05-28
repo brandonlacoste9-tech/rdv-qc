@@ -589,7 +589,12 @@ export async function GET(request: NextRequest) {
   if (error) return apiError(error.message, 500);
 
   const result = (bookings || []).map((b: any) => {
-    const resp = b.responses || {};
+    const resp = toPlainObject(b.responses);
+    const metadata = toPlainObject(b.metadata);
+    const eventType = b.eventType || {};
+    const resolvedLocation =
+      b.location || eventType.location || (Array.isArray(eventType.locations) ? (eventType.locations?.[0]?.type || "") : "");
+
     return {
       id: b.id,
       uid: b.uid,
@@ -597,9 +602,16 @@ export async function GET(request: NextRequest) {
       end: b.endTime,
       title: b.title || b.eventType?.title || "",
       status: b.status === "accepted" ? "accepted" : b.status,
-      attendees: [{ name: resp.name || "", email: resp.email || b.userPrimaryEmail || "" }],
+      attendees: [{
+        name: resp.name || "",
+        email: resp.email || b.userPrimaryEmail || "",
+        timeZone: resp.timeZone || "UTC",
+        language: "fr",
+      }],
+      location: resolvedLocation,
       meetingUrl: b.location || "",
       eventTypeId: b.eventTypeId,
+      metadata,
       paid: b.paid,
       createdAt: b.createdAt,
     };
