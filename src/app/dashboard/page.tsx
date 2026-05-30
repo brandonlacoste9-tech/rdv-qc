@@ -90,7 +90,7 @@ export default function DashboardPage() {
     return (
       <DashboardLayout>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: colors.textMuted }}>
-          Loading...
+          Chargement...
         </div>
       </DashboardLayout>
     );
@@ -102,10 +102,10 @@ export default function DashboardPage() {
         {/* Header */}
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ fontSize: 32, fontWeight: 700, color: colors.text, margin: 0 }}>
-            Hi {userName || "User"}
+            Bonjour {userName || "Utilisateur"}
           </h1>
           <p style={{ fontSize: 14, color: colors.textMuted, margin: "8px 0 0" }}>
-            Here's an overview of your scheduling activity
+            Voici un aperçu de votre activité de planification
           </p>
         </div>
 
@@ -145,13 +145,13 @@ export default function DashboardPage() {
           >
             <div>
               <div style={{ fontSize: 12, color: colors.textMuted, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>
-                Event Types
+                Types de rendez-vous
               </div>
               <div style={{ fontSize: 40, fontWeight: 700, color: colors.accent, marginTop: 12 }}>
                 {eventTypes.length}
               </div>
               <p style={{ fontSize: 13, color: colors.textMuted, margin: "8px 0 0" }}>
-                Manage meeting types
+                Gérer les types de rendez-vous
               </p>
             </div>
             <div style={{ width: 48, height: 48, background: `${colors.accent}20`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -186,13 +186,13 @@ export default function DashboardPage() {
           >
             <div>
               <div style={{ fontSize: 12, color: colors.textMuted, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>
-                Total Bookings
+                Total des réservations
               </div>
               <div style={{ fontSize: 40, fontWeight: 700, color: colors.accent, marginTop: 12 }}>
                 {bookings.length}
               </div>
               <p style={{ fontSize: 13, color: colors.textMuted, margin: "8px 0 0" }}>
-                View all bookings
+                Voir toutes les réservations
               </p>
             </div>
             <div style={{ width: 48, height: 48, background: `${colors.accent}20`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -214,13 +214,13 @@ export default function DashboardPage() {
           >
             <div>
               <div style={{ fontSize: 12, color: colors.textMuted, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.5px" }}>
-                Confirmed
+                Confirmés
               </div>
               <div style={{ fontSize: 40, fontWeight: 700, color: colors.accent, marginTop: 12 }}>
                 {confirmedCount}
               </div>
               <p style={{ fontSize: 13, color: colors.textMuted, margin: "8px 0 0" }}>
-                Confirmed appointments
+                Rendez-vous confirmés
               </p>
             </div>
             <div style={{ width: 48, height: 48, background: `${colors.accent}20`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -233,7 +233,7 @@ export default function DashboardPage() {
         <div style={{ marginBottom: 40 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h2 style={{ fontSize: 20, fontWeight: 600, color: colors.text, margin: 0 }}>
-              Your Meeting Types
+              Vos types de rendez-vous
             </h2>
             <a
               href="/event-types"
@@ -246,7 +246,7 @@ export default function DashboardPage() {
                 gap: 4,
               }}
             >
-              Manage all <ArrowRight size={14} />
+              Tout gérer <ArrowRight size={14} />
             </a>
           </div>
 
@@ -262,7 +262,7 @@ export default function DashboardPage() {
               }}
             >
               <AlertCircle size={32} style={{ margin: "0 auto 12px", opacity: 0.5 }} />
-              <p>No meeting types created yet</p>
+              <p>Aucun type de rendez-vous créé pour le moment</p>
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
@@ -336,7 +336,7 @@ export default function DashboardPage() {
                       }}
                     >
                       <Copy size={14} />
-                      {copySuccess === et.slug ? "Copied!" : "Copy Link"}
+                      {copySuccess === et.slug ? "Copié !" : "Copier le lien"}
                     </button>
                     <a
                       href={userSlug ? `/${userSlug}/${et.slug}` : `/${et.slug}`}
@@ -368,7 +368,7 @@ export default function DashboardPage() {
                       }}
                     >
                       <ExternalLink size={14} />
-                      Preview
+                      Aperçu
                     </a>
                   </div>
                 </div>
@@ -381,7 +381,7 @@ export default function DashboardPage() {
         <div style={{ marginBottom: 40 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h2 style={{ fontSize: 20, fontWeight: 600, color: colors.text, margin: 0 }}>
-              Upcoming Bookings
+              Réservations à venir
             </h2>
             <a
               href="/bookings"
@@ -394,7 +394,7 @@ export default function DashboardPage() {
                 gap: 4,
               }}
             >
-              View all <ArrowRight size={14} />
+              Voir tout <ArrowRight size={14} />
             </a>
           </div>
 
@@ -410,7 +410,7 @@ export default function DashboardPage() {
               }}
             >
               <AlertCircle size={32} style={{ margin: "0 auto 12px", opacity: 0.5 }} />
-              <p>No upcoming bookings</p>
+              <p>Aucune réservation à venir</p>
             </div>
           ) : (
             <div style={{ display: "grid", gap: 12 }}>
@@ -432,8 +432,8 @@ export default function DashboardPage() {
                       {booking.guestName}
                     </div>
                     <div style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }}>
-                      {booking.eventType?.title} • {new Date(booking.startTime).toLocaleDateString()} at{" "}
-                      {new Date(booking.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {booking.eventType?.title} • {new Date(booking.startTime).toLocaleDateString("fr-CA")} à{" "}
+                      {new Date(booking.startTime).toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
@@ -450,7 +450,7 @@ export default function DashboardPage() {
                         cursor: "pointer",
                       }}
                     >
-                      Details
+                      Détails
                     </button>
                   </div>
                 </div>
@@ -462,7 +462,7 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <div style={{ marginBottom: 40 }}>
           <h2 style={{ fontSize: 20, fontWeight: 600, color: colors.text, margin: "0 0 16px" }}>
-            Quick Actions
+            Actions rapides
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
             <a
@@ -490,9 +490,9 @@ export default function DashboardPage() {
             >
               <Calendar size={20} color={colors.accent} />
               <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>Create Event Type</div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Créer un type de rendez-vous</div>
                 <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
-                  Add a new scheduling type
+                  Ajouter un nouveau type de planification
                 </div>
               </div>
             </a>
@@ -522,9 +522,9 @@ export default function DashboardPage() {
             >
               <AlertCircle size={20} color={colors.accent} />
               <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>Set Availability</div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Définir vos disponibilités</div>
                 <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
-                  Configure your working hours
+                  Configurez vos heures de travail
                 </div>
               </div>
             </a>
@@ -554,9 +554,9 @@ export default function DashboardPage() {
             >
               <Calendar size={20} color={colors.accent} />
               <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>AI Assistant</div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Assistant IA</div>
                 <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
-                  Book with Voice or Text AI
+                  Réservez avec l'IA vocale ou textuelle
                 </div>
               </div>
             </a>
@@ -595,7 +595,7 @@ export default function DashboardPage() {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: colors.text, margin: 0 }}>
-                  Booking Details
+                  Détails de la réservation
                 </h2>
                 <button
                   onClick={() => setSelectedBooking(null)}
@@ -613,22 +613,22 @@ export default function DashboardPage() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div>
-                  <div style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Guest</div>
+                  <div style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Invité</div>
                   <div style={{ fontSize: 16, color: colors.text, fontWeight: 500 }}>{selectedBooking.guestName}</div>
                   <div style={{ fontSize: 14, color: colors.accent, marginTop: 2 }}>{selectedBooking.guestEmail}</div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Event</div>
-                  <div style={{ fontSize: 16, color: colors.text }}>{selectedBooking.eventType?.title || "Meeting"}</div>
+                  <div style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Rendez-vous</div>
+                  <div style={{ fontSize: 16, color: colors.text }}>{selectedBooking.eventType?.title || "Rendez-vous"}</div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Time</div>
+                  <div style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>Heure</div>
                   <div style={{ fontSize: 16, color: colors.text }}>
-                    {new Date(selectedBooking.startTime).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    {new Date(selectedBooking.startTime).toLocaleDateString("fr-CA", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     <br />
-                    {new Date(selectedBooking.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(selectedBooking.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(selectedBooking.startTime).toLocaleTimeString("fr-CA", { hour: '2-digit', minute: '2-digit' })} - {new Date(selectedBooking.endTime).toLocaleTimeString("fr-CA", { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
 

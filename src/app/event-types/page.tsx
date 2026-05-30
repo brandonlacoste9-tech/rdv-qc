@@ -30,8 +30,8 @@ const LOCATIONS = [
   { value: "google-meet", label: "Google Meet" },
   { value: "zoom", label: "Zoom" },
   { value: "teams", label: "Microsoft Teams" },
-  { value: "phone", label: "Phone" },
-  { value: "in-person", label: "In-person" },
+  { value: "phone", label: "Téléphone" },
+  { value: "in-person", label: "En personne" },
 ];
 
 const COLORS = ["#c47f3a", "#d4944e", "#a86b32", "#8f5a2b", "#e0ad6b", "#7c4d26", "#b07237", "#8c633f"];
@@ -140,7 +140,7 @@ export default function EventTypesPage() {
   };
 
   const remove = async (et: EventType) => {
-    if (!confirm(`Delete "${et.title}"?`)) return;
+    if (!confirm(`Supprimer « ${et.title} » ?`)) return;
     await fetch(`/api/v2/event-types/${et.id}`, { method: "DELETE" });
     fetchAll();
   };
@@ -170,9 +170,9 @@ export default function EventTypesPage() {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
           <div>
-            <h1 style={{ fontSize: 32, fontWeight: 700, color: colors.text, margin: 0 }}>Event Types</h1>
+            <h1 style={{ fontSize: 32, fontWeight: 700, color: colors.text, margin: 0 }}>Types de rendez-vous</h1>
             <p style={{ fontSize: 14, color: colors.textMuted, margin: "8px 0 0" }}>
-              Create and manage your scheduling types
+              Créez et gérez vos types de planification
             </p>
           </div>
           <button
@@ -192,7 +192,7 @@ export default function EventTypesPage() {
             }}
           >
             <Plus size={18} />
-            New Event Type
+            Nouveau type de rendez-vous
           </button>
         </div>
 
@@ -208,7 +208,7 @@ export default function EventTypesPage() {
               color: colors.textMuted,
             }}
           >
-            <p style={{ fontSize: 14, margin: 0 }}>No event types yet. Create your first one to get started.</p>
+            <p style={{ fontSize: 14, margin: 0 }}>Aucun type de rendez-vous pour le moment. Créez votre premier pour commencer.</p>
           </div>
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
@@ -289,7 +289,7 @@ export default function EventTypesPage() {
                     }}
                   >
                     <Copy size={14} />
-                    {copySuccess === et.slug ? "Copied!" : "Copy"}
+                    {copySuccess === et.slug ? "Copié !" : "Copier"}
                   </button>
 
                   <a
@@ -320,7 +320,7 @@ export default function EventTypesPage() {
                     }}
                   >
                     <ExternalLink size={14} />
-                    Preview
+                    Aperçu
                   </a>
 
                   <button
@@ -348,7 +348,7 @@ export default function EventTypesPage() {
                     }}
                   >
                     <Edit size={14} />
-                    Edit
+                    Modifier
                   </button>
 
                   <button
@@ -374,7 +374,7 @@ export default function EventTypesPage() {
                     }}
                   >
                     <Trash2 size={14} />
-                    Delete
+                    Supprimer
                   </button>
                 </div>
               </div>
@@ -416,7 +416,7 @@ export default function EventTypesPage() {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: colors.text, margin: 0 }}>
-                  {modal.editing ? "Edit Event Type" : "Create Event Type"}
+                  {modal.editing ? "Modifier le type de rendez-vous" : "Créer un type de rendez-vous"}
                 </h2>
                 <button
                   onClick={closeModal}
@@ -436,11 +436,11 @@ export default function EventTypesPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {/* Title */}
                 <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Title</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Titre</span>
                   <input
                     value={form.title}
                     onChange={(e) => set("title", e.target.value)}
-                    placeholder="e.g., 30-min Consultation"
+                    placeholder="ex. : Consultation 30 min"
                     style={{
                       padding: "10px 12px",
                       borderRadius: 8,
@@ -455,11 +455,11 @@ export default function EventTypesPage() {
 
                 {/* Slug */}
                 <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Slug (URL)</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Identifiant (URL)</span>
                   <input
                     value={form.slug}
                     onChange={(e) => set("slug", e.target.value)}
-                    placeholder="e.g., consultation-30min"
+                    placeholder="ex. : consultation-30min"
                     style={{
                       padding: "10px 12px",
                       borderRadius: 8,
@@ -474,7 +474,7 @@ export default function EventTypesPage() {
 
                 {/* Schedule */}
                 <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Custom Schedule</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Horaire personnalisé</span>
                   <select
                     value={form.scheduleId || ""}
                     onChange={(e) => set("scheduleId", e.target.value)}
@@ -488,7 +488,7 @@ export default function EventTypesPage() {
                       outline: "none",
                     }}
                   >
-                    <option value="">Use Default Availability</option>
+                    <option value="">Utiliser les disponibilités par défaut</option>
                     {schedules.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
@@ -503,7 +503,7 @@ export default function EventTypesPage() {
                   <textarea
                     value={form.description}
                     onChange={(e) => set("description", e.target.value)}
-                    placeholder="Describe this event type..."
+                    placeholder="Décrivez ce type de rendez-vous..."
                     rows={3}
                     style={{
                       padding: "10px 12px",
@@ -521,7 +521,7 @@ export default function EventTypesPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   {/* Length */}
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Duration (min)</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Durée (min)</span>
                     <select
                       value={form.length}
                       onChange={(e) => set("length", parseInt(e.target.value))}
@@ -545,7 +545,7 @@ export default function EventTypesPage() {
 
                   {/* Location */}
                   <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Location</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Lieu</span>
                     <select
                       value={form.location}
                       onChange={(e) => set("location", e.target.value)}
@@ -570,7 +570,7 @@ export default function EventTypesPage() {
 
                 {/* Color */}
                 <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Color</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Couleur</span>
                   <div style={{ display: "flex", gap: 8 }}>
                     {COLORS.map((c) => (
                       <button
@@ -606,7 +606,7 @@ export default function EventTypesPage() {
                       fontSize: 14,
                     }}
                   >
-                    Cancel
+                    Annuler
                   </button>
                   <button
                     onClick={save}
@@ -623,7 +623,7 @@ export default function EventTypesPage() {
                       opacity: saving || !form.title.trim() ? 0.5 : 1,
                     }}
                   >
-                    {saving ? "Saving..." : modal.editing ? "Update" : "Create"}
+                    {saving ? "Enregistrement..." : modal.editing ? "Mettre à jour" : "Créer"}
                   </button>
                 </div>
               </div>

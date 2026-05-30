@@ -41,13 +41,13 @@ const COLORS = {
 function statusLabel(status: string, isSpeaking: boolean): { text: string; color: string } {
   switch (status) {
     case 'connecting':
-      return { text: 'Connecting…', color: COLORS.gold };
+      return { text: 'Connexion…', color: COLORS.gold };
     case 'connected':
-      return { text: isSpeaking ? 'Agent speaking…' : 'Listening…', color: COLORS.green };
+      return { text: isSpeaking ? 'L\'agent parle…' : 'À l\'écoute…', color: COLORS.green };
     case 'error':
-      return { text: 'Error', color: COLORS.red };
+      return { text: 'Erreur', color: COLORS.red };
     default:
-      return { text: 'Idle', color: COLORS.textMuted };
+      return { text: 'Inactif', color: COLORS.textMuted };
   }
 }
 
@@ -69,7 +69,7 @@ function AgentConversation({
 
   const conversation = useConversation({
     onConnect: () => setError(null),
-    onError: (message: string) => setError(message || 'Conversation error'),
+    onError: (message: string) => setError(message || 'Erreur de conversation'),
     onMessage: ({ message, role }) =>
       setTranscript((prev) => [...prev, { role: role === 'user' ? 'user' : 'ai', text: message }]),
   });
@@ -99,9 +99,9 @@ function AgentConversation({
       }
     } catch (err: any) {
       if (err?.name === 'NotAllowedError') {
-        setError('Microphone access denied. Please allow the mic and try again.');
+        setError('Accès au micro refusé. Veuillez autoriser le micro et réessayer.');
       } else {
-        setError(err?.message || 'Could not start the voice agent');
+        setError(err?.message || 'Impossible de démarrer l\'assistant vocal');
       }
     } finally {
       setStarting(false);
@@ -208,7 +208,7 @@ function AgentConversation({
               minWidth: 230,
             }}
           >
-            {starting ? 'Starting…' : '🎤 Talk to the assistant'}
+            {starting ? 'Démarrage…' : '🎤 Parler à l\'assistant'}
           </button>
         ) : (
           <button
@@ -225,7 +225,7 @@ function AgentConversation({
               minWidth: 230,
             }}
           >
-            ⏹ End call
+            ⏹ Terminer l'appel
           </button>
         )}
       </div>
@@ -247,7 +247,7 @@ function AgentConversation({
       >
         {transcript.length === 0 ? (
           <div style={{ color: COLORS.textMuted, textAlign: 'center', paddingTop: 24 }}>
-            Click the button and start speaking to book an appointment.
+            Cliquez sur le bouton et commencez à parler pour réserver un rendez-vous.
           </div>
         ) : (
           transcript.map((entry, i) => (
@@ -270,7 +270,7 @@ function AgentConversation({
                 }}
               >
                 <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 2 }}>
-                  {entry.role === 'user' ? 'You' : 'Assistant'}
+                  {entry.role === 'user' ? 'Vous' : 'Assistant'}
                 </div>
                 {entry.text}
               </div>
@@ -308,8 +308,8 @@ export function ElevenLabsAgentWidget({
       const data = await res.json().catch(() => ({}));
       const times: string[] = data.availableTimes || [];
       return times.length
-        ? `Available times on ${params.date}: ${times.join(', ')}`
-        : `No availability found for ${params.date}.`;
+        ? `Horaires disponibles le ${params.date} : ${times.join(', ')}`
+        : `Aucune disponibilité trouvée pour le ${params.date}.`;
     },
     book_appointment: async (params: {
       name: string;
@@ -322,7 +322,7 @@ export function ElevenLabsAgentWidget({
         body: JSON.stringify({ ...params, username, eventTypeSlug }),
       });
       const data = await res.json().catch(() => ({}));
-      return data.agentMessage || data.message || (data.success ? 'Booked.' : 'Booking failed.');
+      return data.agentMessage || data.message || (data.success ? 'Réservé.' : 'Échec de la réservation.');
     },
   };
 

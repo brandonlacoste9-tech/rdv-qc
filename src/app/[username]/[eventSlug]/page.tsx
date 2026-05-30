@@ -54,7 +54,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     if (q.get("booking") === "success") { setBooking({ status: "paid", guestName: form.name || "", eventTypeTitle: eventType?.title || "" }); window.history.replaceState({}, "", `/${username}/${eventSlug}`); return; }
-    if (q.get("booking") === "cancelled") { setError("Payment cancelled."); window.history.replaceState({}, "", `/${username}/${eventSlug}`); return; }
+    if (q.get("booking") === "cancelled") { setError("Paiement annulé."); window.history.replaceState({}, "", `/${username}/${eventSlug}`); return; }
   }, [username, eventSlug, eventType, form.name]);
 
   useEffect(() => {
@@ -62,13 +62,13 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
       .then(r => r.json())
       .then(data => {
         if (data?.error) {
-          setError(data.error === "User not found" ? "User not found." : "Event type not found.");
+          setError(data.error === "User not found" ? "Utilisateur introuvable." : "Type de rendez-vous introuvable.");
           return;
         }
 
         const et = data?.data;
         if (!et) {
-          setError("Event type not found.");
+          setError("Type de rendez-vous introuvable.");
           return;
         }
 
@@ -81,7 +81,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
           },
         });
       })
-      .catch(() => setError("Error loading event."))
+      .catch(() => setError("Erreur lors du chargement du rendez-vous."))
       .finally(() => setLoading(false));
   }, [username, eventSlug]);
 
@@ -122,7 +122,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
       });
       setSubmitting(false);
       if (res.ok) { const json = await res.json(); window.location.href = json.data.checkoutUrl; }
-      else { const err = await res.json(); setError(err.error || "Payment error."); }
+      else { const err = await res.json(); setError(err.error || "Erreur de paiement."); }
       return;
     }
 
@@ -131,22 +131,22 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
       body: JSON.stringify({ start: startISO, eventTypeId: eventType!.id, attendee: { name: form.name, email: form.email, timeZone }, metadata: { notes: form.notes } }),
     });
     setSubmitting(false);
-    if (res.status === 409) { setError("This slot is no longer available."); setSelectedSlot(""); return; }
+    if (res.status === 409) { setError("Ce créneau n'est plus disponible."); setSelectedSlot(""); return; }
     if (res.ok) {
       const json = await res.json(); const b = json.data;
       setBooking({ status: "confirmed", uid: b.uid, guestName: b.attendees?.[0]?.name || form.name, meetingUrl: b.meetingUrl, start: b.start, end: b.end, eventTypeTitle: eventType?.title });
-    } else setError("Booking error.");
+    } else setError("Erreur lors de la réservation.");
   }
 
   const y = currentMonth.getFullYear(), m = currentMonth.getMonth();
   const firstDay = new Date(y, m, 1).getDay(), firstDayMon = firstDay === 0 ? 6 : firstDay - 1;
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const today = new Date().toISOString().split("T")[0];
-  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthNames = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
   const dk = (d: number) => `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
   const nav = (dir: number) => { setCurrentMonth(new Date(y, m + dir, 1)); setDate(""); setSelectedSlot(""); setSlots([]); };
   const locIcon = eventType?.location === "google-meet" ? "📹" : eventType?.location === "phone" ? "📞" : eventType?.location === "zoom" ? "📹" : eventType?.location === "teams" ? "📹" : "📍";
-  const locLabel = eventType?.location === "google-meet" ? "Google Meet" : eventType?.location === "phone" ? "Phone" : eventType?.location === "zoom" ? "Zoom" : eventType?.location === "teams" ? "Teams" : "In Person";
+  const locLabel = eventType?.location === "google-meet" ? "Google Meet" : eventType?.location === "phone" ? "Téléphone" : eventType?.location === "zoom" ? "Zoom" : eventType?.location === "teams" ? "Teams" : "En personne";
   const ALL_TIMEZONES: string[] = typeof Intl !== 'undefined' && (Intl as any).supportedValuesOf
     ? (Intl as any).supportedValuesOf('timeZone')
     : ['America/Toronto','America/New_York','America/Vancouver','Europe/Paris'];
@@ -160,38 +160,38 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
             {booking.status === "paid" ? "💳" : "✓"}
           </div>
           <h2 style={{ fontSize: "24px", fontWeight: "700", color: colors.text, marginBottom: "8px", fontFamily: "'Cal Sans', 'Inter', sans-serif" }}>
-            {booking.status === "paid" ? "Payment Successful!" : "Booking Confirmed!"}
+            {booking.status === "paid" ? "Paiement réussi !" : "Rendez-vous confirmé !"}
           </h2>
           <p style={{ color: colors.textMuted, fontSize: "15px", marginBottom: "16px" }}>
             <span style={{ fontWeight: "600" }}>{booking.eventTypeTitle || eventType?.title}</span><br/>
-            <span style={{ fontSize: "14px" }}>{sd?.toLocaleDateString("en-US", { weekday:"long",day:"numeric",month:"long" })}</span>
+            <span style={{ fontSize: "14px" }}>{sd?.toLocaleDateString("fr-CA", { weekday:"long",day:"numeric",month:"long" })}</span>
           </p>
           {booking.meetingUrl && (
             <a href={booking.meetingUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginBottom: "16px", padding: "10px 20px", background: "rgba(196,127,58,0.15)", color: colors.accent, borderRadius: "8px", textDecoration: "none", fontSize: "14px", fontWeight: "600", transition: "all 0.2s" }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.25)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.15)")}
             >
-              📹 Join Meeting →
+              📹 Rejoindre la réunion →
             </a>
           )}
-          <p style={{ fontSize: "13px", color: colors.dimText, marginBottom: "24px" }}>Confirmation sent to {form.email}.</p>
+          <p style={{ fontSize: "13px", color: colors.dimText, marginBottom: "24px" }}>Confirmation envoyée à {form.email}.</p>
           {booking.uid && (
             <div style={{ display: "flex", gap: "16px", justifyContent: "center", marginBottom: "24px", flexWrap: "wrap" }}>
               <a href={`/booking/${booking.uid}/reschedule`} style={{ fontSize: "13px", color: colors.accent, fontWeight: "600", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = colors.accentHover)}
                 onMouseLeave={(e) => (e.currentTarget.style.color = colors.accent)}
-              >🔄 Reschedule</a>
+              >🔄 Reprogrammer</a>
               <a href={`/booking/${booking.uid}/cancel`} style={{ fontSize: "13px", color: colors.dimText, fontWeight: "600", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = colors.textMuted)}
                 onMouseLeave={(e) => (e.currentTarget.style.color = colors.dimText)}
-              >✕ Cancel</a>
+              >✕ Annuler</a>
             </div>
           )}
           <a href={`/${username}/${eventSlug}`} style={{ display: "inline-block", padding: "12px 24px", borderRadius: "8px", border: `1px solid ${colors.border}`, color: colors.text, textDecoration: "none", fontSize: "14px", fontWeight: "600", transition: "all 0.2s" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(196,127,58,0.08)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
-            Book Another
+            Réserver à nouveau
           </a>
         </div>
       </div>
@@ -202,7 +202,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
     <div style={{ minHeight: "100vh", background: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ textAlign: "center" }}>
         <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: `3px solid ${colors.border}`, borderTopColor: colors.accent, margin: "0 auto 16px", animation: "spin 1s linear infinite" }} />
-        <p style={{ color: colors.textMuted }}>Loading availability...</p>
+        <p style={{ color: colors.textMuted }}>Chargement des disponibilités...</p>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     </div>
@@ -212,7 +212,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
     <div style={{ minHeight: "100vh", background: colors.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ background: colors.cardBg, borderRadius: "12px", border: `1px solid ${colors.border}`, padding: "32px", textAlign: "center", maxWidth: "480px", width: "100%" }}>
         <AlertCircle style={{ width: "48px", height: "48px", color: colors.accent, margin: "0 auto 16px" }} />
-        <p style={{ color: colors.text, fontWeight: "600" }}>{error || "Event not found"}</p>
+        <p style={{ color: colors.text, fontWeight: "600" }}>{error || "Rendez-vous introuvable"}</p>
       </div>
     </div>
   );
@@ -232,7 +232,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
               {/* Host Info */}
               <p style={{ fontSize: "14px", color: colors.textMuted, marginBottom: "4px", margin: "0 0 4px" }}>{eventType.user.name}</p>
               <h1 style={{ fontSize: "22px", fontWeight: "700", color: colors.text, marginBottom: "8px", margin: "0 0 8px", fontFamily: "'Cal Sans', 'Inter', sans-serif" }}>{eventType.title}</h1>
-              <p style={{ fontSize: "13px", color: colors.dimText, marginBottom: "16px", margin: "0 0 16px" }}>with {eventType.user.name}</p>
+              <p style={{ fontSize: "13px", color: colors.dimText, marginBottom: "16px", margin: "0 0 16px" }}>avec {eventType.user.name}</p>
 
               {/* Duration Badges */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "16px" }}>
@@ -262,7 +262,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
 
               {/* Timezone Selector */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={{ fontSize: "12px", fontWeight: "600", color: colors.textMuted, display: "block", marginBottom: "8px" }}>Timezone</label>
+                <label style={{ fontSize: "12px", fontWeight: "600", color: colors.textMuted, display: "block", marginBottom: "8px" }}>Fuseau horaire</label>
                 <select value={timeZone} onChange={e => setTimeZone(e.target.value)} style={{ width: "100%", padding: "8px 12px", border: `1px solid ${colors.border}`, borderRadius: "8px", background: colors.bg, color: colors.text, fontSize: "13px", fontFamily: "'Inter', sans-serif", outline: "none", cursor: "pointer" }}>
                   {ALL_TIMEZONES.map(tz => (
                     <option key={tz} value={tz} style={{ background: colors.bg, color: colors.text }}>{tz}</option>
@@ -303,7 +303,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
               <div style={{ padding: "24px" }}>
                 {/* Day Headers */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px", marginBottom: "16px" }}>
-                  {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => (
+                  {["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map(d => (
                     <div key={d} style={{ textAlign: "center", fontSize: "12px", fontWeight: "600", color: colors.dimText, paddingBottom: "8px" }}>
                       {d}
                     </div>
@@ -331,15 +331,15 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
                 {date && (
                   <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: "24px" }}>
                     <h3 style={{ fontSize: "14px", fontWeight: "600", color: colors.text, marginBottom: "16px", margin: "0 0 16px" }}>
-                      {new Date(date+"T00:00:00").toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long"})}
+                      {new Date(date+"T00:00:00").toLocaleDateString("fr-CA",{weekday:"long",day:"numeric",month:"long"})}
                     </h3>
                     {loadingSlots ? (
                       <div style={{ textAlign: "center", paddingBottom: "32px" }}>
                         <div style={{ width: "32px", height: "32px", borderRadius: "50%", border: `3px solid ${colors.border}`, borderTopColor: colors.accent, margin: "0 auto 8px", animation: "spin 1s linear infinite" }} />
-                        <p style={{ color: colors.textMuted, fontSize: "14px", margin: 0 }}>Loading times...</p>
+                        <p style={{ color: colors.textMuted, fontSize: "14px", margin: 0 }}>Chargement des horaires...</p>
                       </div>
                     ) : slots.length === 0 ? (
-                      <p style={{ color: colors.textMuted, fontSize: "14px", paddingBottom: "16px", margin: 0 }}>No available times for this date.</p>
+                      <p style={{ color: colors.textMuted, fontSize: "14px", paddingBottom: "16px", margin: 0 }}>Aucun horaire disponible pour cette date.</p>
                     ) : (
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: "8px" }}>
                         {slots.map(s => (
@@ -359,12 +359,12 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
                 {/* Booking Form */}
                 {selectedSlot && (
                   <form onSubmit={handleBook} style={{ borderTop: `1px solid ${colors.border}`, paddingTop: "24px", marginTop: "24px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: "600", color: colors.text, marginBottom: "16px", margin: "0 0 16px" }}>Your Information</h3>
+                    <h3 style={{ fontSize: "14px", fontWeight: "600", color: colors.text, marginBottom: "16px", margin: "0 0 16px" }}>Vos coordonnées</h3>
                     
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
                       <input 
                         type="text"
-                        placeholder="Full name" 
+                        placeholder="Nom complet"
                         value={form.name} 
                         onChange={e => setForm({...form,name:e.target.value})} 
                         required
@@ -374,7 +374,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
                       />
                       <input 
                         type="email" 
-                        placeholder="Email address" 
+                        placeholder="Adresse courriel"
                         value={form.email} 
                         onChange={e => setForm({...form,email:e.target.value})} 
                         required
@@ -383,7 +383,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
                         onBlur={(e) => (e.currentTarget.style.borderColor = colors.border)}
                       />
                       <textarea 
-                        placeholder="Additional notes (optional)" 
+                        placeholder="Notes additionnelles (facultatif)"
                         value={form.notes} 
                         onChange={e => setForm({...form,notes:e.target.value})} 
                         rows={3}
@@ -404,7 +404,7 @@ export default function BookingPage({ params }: { params: Promise<{ username: st
                       onMouseEnter={(e) => !submitting && (e.currentTarget.style.background = colors.accentHover)}
                       onMouseLeave={(e) => (e.currentTarget.style.background = colors.accent)}
                     >
-                      {submitting ? "Booking..." : eventType.price > 0 ? `Pay ${(eventType.price/100).toFixed(2)}$ & Confirm` : "Confirm Booking"}
+                      {submitting ? "Réservation..." : eventType.price > 0 ? `Payer ${(eventType.price/100).toFixed(2)}$ et confirmer` : "Confirmer la réservation"}
                     </button>
                   </form>
                 )}

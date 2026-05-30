@@ -74,15 +74,6 @@ export default async function UserHubPage({ params }: { params: Promise<{ userna
         background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(200,169,110,0.15)",
         padding: "48px 24px 40px", textAlign: "center",
       }}>
-        {/* Language Toggle Badge */}
-        <div style={{
-          position: "absolute", top: 16, right: 16,
-          background: "rgba(200,169,110,0.1)", border: "1px solid rgba(200,169,110,0.2)",
-          color: "#c8a96e", fontSize: 11, fontWeight: 700, padding: "4px 8px",
-          borderRadius: 6, cursor: "pointer", letterSpacing: 0.5
-        }}>
-          EN
-        </div>
         {/* Avatar */}
         <div style={{
           width: 80, height: 80, borderRadius: "50%",
@@ -128,7 +119,7 @@ export default async function UserHubPage({ params }: { params: Promise<{ userna
           fontFamily: "'Cal Sans','Inter',sans-serif", fontSize: 22, fontWeight: 700,
           color: "#f5ead8", marginBottom: 4,
         }}>
-          {displayName}&apos;s Planxo Appointment Calendar
+          Calendrier de rendez-vous Planxo de {displayName}
         </h2>
         <p style={{
           fontSize: 14, color: "#a08060", marginBottom: 24,
