@@ -6,8 +6,14 @@ import { Copy, Check, ExternalLink } from "lucide-react";
 
 type Tab = "profile" | "calendars" | "conferencing" | "api" | "appearance" | "workflows";
 
+const VALID_TABS: Tab[] = ["profile", "calendars", "conferencing", "api", "appearance", "workflows"];
+
 export default function SettingsPage() {
-  const [tab, setTab] = useState<Tab>("profile");
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window === "undefined") return "profile";
+    const t = new URLSearchParams(window.location.search).get("tab");
+    return VALID_TABS.includes(t as Tab) ? (t as Tab) : "profile";
+  });
   const [user, setUser] = useState<any>(null);
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -255,23 +261,88 @@ function ProfileSection({
 }
 
 function CalendarsSection({ colors }: any) {
+  const [status, setStatus] = useState<any>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/auth/status")
+      .then(r => r.json())
+      .then(data => setStatus(data?.data || null))
+      .catch(() => setStatus(null))
+      .finally(() => setLoadingStatus(false));
+  }, []);
+
+  const connected: Record<string, boolean> = status?.connected || {};
+  const credentials: any[] = status?.credentials || [];
+  const emailFor = (provider: string) =>
+    credentials.find((c) => c.type === provider)?.accountEmail || "";
+
+  const providers = [
+    { key: "google", label: "Google Calendar", icon: "🔵", connectUrl: "/api/auth/google", disconnectUrl: "/api/auth/google/disconnect", connectBg: colors.bg, connectBorder: `1px solid ${colors.border}`, connectColor: colors.text },
+    { key: "outlook", label: "Outlook Calendar", icon: "🔷", connectUrl: "/api/auth/outlook", disconnectUrl: null, connectBg: "#0078D4", connectBorder: "none", connectColor: "#fff" },
+    { key: "zoom", label: "Zoom", icon: "🎥", connectUrl: "/api/auth/zoom", disconnectUrl: null, connectBg: "#0B5CFF", connectBorder: "none", connectColor: "#fff" },
+  ];
+
   return (
     <div style={{ animation: "fadeIn 0.3s ease" }}>
       <h1 style={{ fontFamily: "'Cal Sans',sans-serif", fontSize: 24, fontWeight: 700, marginBottom: 6, color: colors.text }}>Calendriers connectés</h1>
       <p style={{ fontSize: 14, color: colors.textMuted, marginBottom: 28 }}>Connectez vos calendriers pour synchroniser vos disponibilités.</p>
-      
+
       <div style={{ padding: 24, borderRadius: 16, border: `1px solid ${colors.border}`, background: colors.cardBg }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <a href="/api/auth/google" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "12px 20px", borderRadius: 10, background: colors.bg, border: `1px solid ${colors.border}`, color: colors.text, fontSize: 14, fontWeight: 600, textDecoration: "none", width: "fit-content" }}>
-            🔵 Connecter Google Calendar
-          </a>
-          <a href="/api/auth/outlook" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "12px 20px", borderRadius: 10, background: "#0078D4", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", width: "fit-content" }}>
-            🔷 Connecter Outlook Calendar
-          </a>
-          <a href="/api/auth/zoom" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "12px 20px", borderRadius: 10, background: "#0B5CFF", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", width: "fit-content" }}>
-            🎥 Connecter Zoom
-          </a>
-        </div>
+        {loadingStatus ? (
+          <div style={{ color: colors.textMuted, fontSize: 14 }}>Chargement...</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {providers.map((p) => {
+              const isConnected = !!connected[p.key];
+              const email = emailFor(p.key);
+              return (
+                <div
+                  key={p.key}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    gap: 12, padding: "14px 18px", borderRadius: 10,
+                    background: colors.bg, border: `1px solid ${colors.border}`,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 18 }}>{p.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: colors.text }}>{p.label}</div>
+                      {isConnected ? (
+                        <div style={{ fontSize: 12, color: "#10b981", fontWeight: 500, display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                          <Check size={14} /> Connecté{email ? ` · ${email}` : ""}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>Non connecté</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {isConnected ? (
+                    p.disconnectUrl ? (
+                      <a href={p.disconnectUrl} style={{ fontSize: 13, color: "#ef4444", fontWeight: 600, textDecoration: "none" }}>
+                        Déconnecter
+                      </a>
+                    ) : null
+                  ) : (
+                    <a
+                      href={p.connectUrl}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 8,
+                        padding: "8px 16px", borderRadius: 10,
+                        background: p.connectBg, border: p.connectBorder, color: p.connectColor,
+                        fontSize: 13, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap",
+                      }}
+                    >
+                      Connecter
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-
-const PLANXO_USER_ID = "u1";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { data: connectedCalendars } = await supabase
     .from("connected_calendars")
     .select("provider, expires_at, created_at, account_email")
-    .eq("user_id", PLANXO_USER_ID);
+    .eq("user_id", user.id);
 
   const connected: Record<string, boolean> = {
     google: false,
