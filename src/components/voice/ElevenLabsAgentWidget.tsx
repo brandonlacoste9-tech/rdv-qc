@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ConversationProvider, useConversation } from '@elevenlabs/react';
 import { VoiceAgentErrorBoundary } from './ErrorBoundary';
 
@@ -20,28 +20,6 @@ interface ElevenLabsAgentWidgetProps {
   language?: AgentLanguage;
   mode?: 'demo' | 'dashboard';
   className?: string;
-}
-
-function agentOverrides(language: AgentLanguage) {
-  return {
-    agent: {
-      language,
-      prompt: {
-        prompt:
-          language === 'fr'
-            ? `Tu es un assistant de prise de rendez-vous pour Planxo. Parle toujours en français.
-             Vérifie les disponibilités, collecte le nom et le courriel du client, et confirme le rendez-vous.
-             Fuseau horaire : America/Toronto.`
-            : `You are a scheduling assistant for Planxo. Always speak in English.
-             Check availability, collect the caller's name and email, and confirm the appointment.
-             Timezone: America/Toronto.`,
-      },
-      firstMessage:
-        language === 'fr'
-          ? "Bonjour ! Je suis l'assistant de planification de Planxo. Comment puis-je vous aider aujourd'hui ?"
-          : "Hello! I'm the Planxo scheduling assistant. How can I help you today?",
-    },
-  };
 }
 
 interface TranscriptEntry {
@@ -110,18 +88,14 @@ function AgentConversation({
       const res = await fetch('/api/v2/elevenlabs/agent');
       const data = await res.json().catch(() => ({}));
 
-      // SDK types don't fully expose `overrides`, so cast the session config as any.
-      const overrides = agentOverrides(language);
-
       if (res.ok && data.signedUrl) {
-        await startSession({ signedUrl: data.signedUrl, overrides } as any);
+        await startSession({ signedUrl: data.signedUrl });
       } else {
         // Connect with the public agent ID via WebRTC (lower latency).
         await startSession({
           agentId: data.agentId || agentId,
           connectionType: 'webrtc',
-          overrides,
-        } as any);
+        });
       }
     } catch (err: any) {
       if (err?.name === 'NotAllowedError') {
@@ -132,7 +106,25 @@ function AgentConversation({
     } finally {
       setStarting(false);
     }
-  }, [startSession, agentId, language]);
+  }, [startSession, agentId]);
+
+  // After the session connects, send language context (no overrides needed).
+  useEffect(() => {
+    if (status === 'connected') {
+      const timer = setTimeout(() => {
+        try {
+          conversation.sendContextualUpdate(
+            language === 'fr'
+              ? 'The user prefers French. Please respond in French.'
+              : 'The user prefers English. Please respond in English.'
+          );
+        } catch {
+          // ignore if not supported
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [status, language, conversation]);
 
   const stop = useCallback(async () => {
     try {
