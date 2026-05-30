@@ -1,193 +1,278 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
+import { ConversationProvider, useConversation } from '@elevenlabs/react';
+import { VoiceAgentErrorBoundary } from './ErrorBoundary';
 
 interface ElevenLabsAgentWidgetProps {
-  agentId: string;
+  /** Planxo user/host the agent books for (passed to tool routes). */
+  username?: string;
+  /** Event type slug to book. */
+  eventTypeSlug?: string;
   mode?: 'demo' | 'dashboard';
   className?: string;
-  onConversationStart?: () => void;
-  onConversationEnd?: (data: any) => void;
 }
 
-/**
- * ElevenLabs Agent Widget Component
- * 
- * Embeds the ElevenLabs Conversational AI widget for appointment scheduling.
- * Handles agent initialization, conversation events, and error handling.
- */
-export function ElevenLabsAgentWidget({
-  agentId,
-  mode = 'dashboard',
-  className = '',
-  onConversationStart,
-  onConversationEnd
-}: ElevenLabsAgentWidgetProps) {
-  const [isLoading, setIsLoading] = useState(true);
+interface TranscriptEntry {
+  role: 'user' | 'ai';
+  text: string;
+}
+
+const COLORS = {
+  bg: '#1a1208',
+  cardBg: '#0f0a05',
+  gold: '#c8a96e',
+  text: '#f5ead8',
+  textMuted: '#a08060',
+  border: 'rgba(200,169,110,0.25)',
+  red: '#ef4444',
+  green: '#10b981',
+};
+
+function statusLabel(status: string, isSpeaking: boolean): { text: string; color: string } {
+  switch (status) {
+    case 'connecting':
+      return { text: 'Connecting…', color: COLORS.gold };
+    case 'connected':
+      return { text: isSpeaking ? 'Agent speaking…' : 'Listening…', color: COLORS.green };
+    case 'error':
+      return { text: 'Error', color: COLORS.red };
+    default:
+      return { text: 'Idle', color: COLORS.textMuted };
+  }
+}
+
+function AgentConversation({
+  mode,
+  className,
+}: {
+  mode: 'demo' | 'dashboard';
+  className: string;
+}) {
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [starting, setStarting] = useState(false);
 
-  // Load and initialize ElevenLabs widget
-  useEffect(() => {
-    const initializeWidget = async () => {
-      try {
-        // Load ElevenLabs widget script
-        const script = document.createElement('script');
-        script.src = 'https://elevenlabs.io/convai-widget/index.js';
-        script.async = true;
+  const conversation = useConversation({
+    onConnect: () => setError(null),
+    onError: (message: string) => setError(message || 'Conversation error'),
+    onMessage: ({ message, role }) =>
+      setTranscript((prev) => [...prev, { role: role === 'user' ? 'user' : 'ai', text: message }]),
+  });
 
-        script.onload = () => {
-          // Wait for window.ElevenLabsConvAI to be available
-          let attempts = 0;
-          const checkWidget = setInterval(() => {
-            attempts++;
-            if (window.ElevenLabsConvAI) {
-              clearInterval(checkWidget);
-              
-              try {
-                // Initialize widget with agent ID
-                if (typeof window.ElevenLabsConvAI.setAgentId === 'function') {
-                  window.ElevenLabsConvAI.setAgentId(agentId);
-                }
+  const { status, isSpeaking, startSession, endSession } = conversation;
+  const isActive = status === 'connected' || status === 'connecting';
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
 
-                // Set up event listeners
-                if (typeof window.ElevenLabsConvAI.on === 'function') {
-                  window.ElevenLabsConvAI.on('conversation_start', () => {
-                    console.log('[ElevenLabs Widget] Conversation started');
-                    onConversationStart?.();
-                  });
+  const start = useCallback(async () => {
+    setError(null);
+    setStarting(true);
+    try {
+      // Mic permission must be granted before the session opens.
+      await navigator.mediaDevices.getUserMedia({ audio: true });
 
-                  window.ElevenLabsConvAI.on('conversation_end', (data: any) => {
-                    console.log('[ElevenLabs Widget] Conversation ended', data);
-                    onConversationEnd?.(data);
-                  });
+      const res = await fetch('/api/v2/elevenlabs/agent');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load agent config');
 
-                  window.ElevenLabsConvAI.on('error', (error: any) => {
-                    console.error('[ElevenLabs Widget] Error:', error);
-                    setError('An error occurred during the conversation');
-                  });
-                }
-
-                setIsInitialized(true);
-                setIsLoading(false);
-              } catch (initErr) {
-                console.error('[ElevenLabs Widget] Initialization error:', initErr);
-                setError('Failed to initialize voice agent');
-                setIsLoading(false);
-              }
-            } else if (attempts > 50) { // Stop after 5 seconds
-              clearInterval(checkWidget);
-              setError('Failed to load voice agent components');
-              setIsLoading(false);
-            }
-          }, 100);
-
-          // Timeout after 5 seconds
-          setTimeout(() => {
-            clearInterval(checkWidget);
-            if (!isInitialized) {
-              setError('Failed to initialize widget');
-              setIsLoading(false);
-            }
-          }, 5000);
-        };
-
-        script.onerror = () => {
-          setError('Failed to load ElevenLabs widget');
-          setIsLoading(false);
-        };
-
-        document.body.appendChild(script);
-
-        return () => {
-          if (document.body.contains(script)) {
-            document.body.removeChild(script);
-          }
-        };
-      } catch (err: any) {
-        setError(err.message || 'Failed to initialize widget');
-        setIsLoading(false);
+      if (data.signedUrl) {
+        await startSession({ signedUrl: data.signedUrl });
+      } else if (data.agentId) {
+        await startSession({ agentId: data.agentId });
+      } else {
+        throw new Error('No agent connection available');
       }
-    };
+    } catch (err: any) {
+      if (err?.name === 'NotAllowedError') {
+        setError('Microphone access denied. Please allow the mic and try again.');
+      } else {
+        setError(err?.message || 'Could not start the voice agent');
+      }
+    } finally {
+      setStarting(false);
+    }
+  }, [startSession]);
 
-    initializeWidget();
-  }, [agentId, onConversationStart, onConversationEnd, isInitialized]);
+  const stop = useCallback(async () => {
+    try {
+      await endSession();
+    } catch {
+      /* already closed */
+    }
+  }, [endSession]);
 
-  // Render error state
-  if (error) {
-    return (
-      <div
-        className={`p-6 text-center rounded-lg border border-red-200 bg-red-50 ${className}`}
-        style={{
-          padding: '24px',
-          textAlign: 'center',
-          color: '#dc2626',
-          border: '1px solid #fecaca',
-          borderRadius: '8px',
-          backgroundColor: '#fef2f2'
-        }}
-      >
-        <p className="font-semibold">{error}</p>
-        <p className="text-sm mt-2">Please try refreshing the page or contact support.</p>
-      </div>
-    );
-  }
+  const { text: statusText, color: statusColor } = statusLabel(status, isSpeaking);
+  const minHeight = mode === 'demo' ? 300 : 420;
 
-  // Render loading state
-  if (isLoading) {
-    return (
-      <div
-        className={`flex items-center justify-center rounded-lg bg-gray-50 ${className}`}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '400px',
-          color: '#666',
-          backgroundColor: '#f9fafb',
-          borderRadius: '8px'
-        }}
-      >
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4" />
-          <p>Loading voice agent...</p>
-          <p className="text-xs text-gray-500 mt-2">This may take a moment</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Render widget container
   return (
     <div
-      className={`rounded-lg overflow-hidden ${className}`}
+      className={className}
       style={{
-        borderRadius: '8px',
-        overflow: 'hidden',
-        minHeight: mode === 'demo' ? '300px' : '500px'
+        borderRadius: 16,
+        border: `1px solid ${COLORS.border}`,
+        background: COLORS.cardBg,
+        padding: 20,
+        color: COLORS.text,
+        fontFamily: 'system-ui, sans-serif',
+        minHeight,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
       }}
     >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: statusColor,
+            boxShadow: status === 'connected' ? `0 0 0 4px ${COLORS.green}22` : 'none',
+          }}
+        />
+        <span style={{ fontWeight: 600, color: statusColor }}>{statusText}</span>
+      </div>
+
+      <div style={{ textAlign: 'center' }}>
+        {!isActive ? (
+          <button
+            onClick={start}
+            disabled={starting}
+            style={{
+              padding: '16px 34px',
+              fontSize: 17,
+              fontWeight: 700,
+              borderRadius: 999,
+              border: 'none',
+              background: COLORS.gold,
+              color: COLORS.bg,
+              cursor: starting ? 'wait' : 'pointer',
+              minWidth: 230,
+            }}
+          >
+            {starting ? 'Starting…' : '🎤 Talk to the assistant'}
+          </button>
+        ) : (
+          <button
+            onClick={stop}
+            style={{
+              padding: '16px 34px',
+              fontSize: 17,
+              fontWeight: 700,
+              borderRadius: 999,
+              border: `1px solid ${COLORS.red}`,
+              background: '#3f1f1f',
+              color: COLORS.red,
+              cursor: 'pointer',
+              minWidth: 230,
+            }}
+          >
+            ⏹ End call
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div style={{ color: COLORS.red, textAlign: 'center', fontSize: 14 }}>{error}</div>
+      )}
+
       <div
-        id="elevenlabs-convai-widget"
         style={{
-          width: '100%',
-          height: '100%',
-          minHeight: mode === 'demo' ? '300px' : '500px'
+          flex: 1,
+          overflowY: 'auto',
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 12,
+          padding: 16,
+          background: COLORS.bg,
+          minHeight: 160,
         }}
-      />
+      >
+        {transcript.length === 0 ? (
+          <div style={{ color: COLORS.textMuted, textAlign: 'center', paddingTop: 24 }}>
+            Click the button and start speaking to book an appointment.
+          </div>
+        ) : (
+          transcript.map((entry, i) => (
+            <div
+              key={i}
+              style={{
+                marginBottom: 12,
+                display: 'flex',
+                justifyContent: entry.role === 'user' ? 'flex-end' : 'flex-start',
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: '82%',
+                  padding: '8px 14px',
+                  borderRadius: 14,
+                  background: entry.role === 'user' ? COLORS.gold : COLORS.cardBg,
+                  color: entry.role === 'user' ? COLORS.bg : COLORS.text,
+                  border: entry.role === 'ai' ? `1px solid ${COLORS.border}` : 'none',
+                }}
+              >
+                <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 2 }}>
+                  {entry.role === 'user' ? 'You' : 'Assistant'}
+                </div>
+                {entry.text}
+              </div>
+            </div>
+          ))
+        )}
+        <div ref={transcriptEndRef} />
+      </div>
     </div>
   );
 }
 
-// Extend Window interface for TypeScript
-declare global {
-  interface Window {
-    ElevenLabsConvAI?: {
-      setAgentId: (id: string) => void;
-      on: (event: string, callback: (data?: any) => void) => void;
-      [key: string]: any;
-    };
-  }
+/**
+ * ElevenLabs Conversational AI widget.
+ *
+ * Connects to a Conversational AI agent via the official SDK, handles mic
+ * permission and connection status, shows a live transcript, and ends cleanly.
+ * Booking/availability run server-side through the agent's configured tools
+ * (POST /api/v2/elevenlabs/tools/booking and /tools/availability); we also expose
+ * the same operations as client tools so a browser-connected agent can act
+ * without a server round-trip.
+ */
+export function ElevenLabsAgentWidget({
+  username = 'planxo',
+  eventTypeSlug = 'consultation-30min',
+  mode = 'dashboard',
+  className = '',
+}: ElevenLabsAgentWidgetProps) {
+  const clientTools = {
+    check_availability: async (params: { date?: string }) => {
+      const url = `/api/v2/ai/availability?date=${encodeURIComponent(params.date || '')}&username=${encodeURIComponent(username)}&eventTypeSlug=${encodeURIComponent(eventTypeSlug)}`;
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+      const times: string[] = data.availableTimes || [];
+      return times.length
+        ? `Available times on ${params.date}: ${times.join(', ')}`
+        : `No availability found for ${params.date}.`;
+    },
+    book_appointment: async (params: {
+      name: string;
+      email: string;
+      start_time: string;
+    }) => {
+      const res = await fetch('/api/v2/elevenlabs/tools/booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...params, username, eventTypeSlug }),
+      });
+      const data = await res.json().catch(() => ({}));
+      return data.agentMessage || data.message || (data.success ? 'Booked.' : 'Booking failed.');
+    },
+  };
+
+  return (
+    <VoiceAgentErrorBoundary>
+      <ConversationProvider clientTools={clientTools}>
+        <AgentConversation mode={mode} className={className} />
+      </ConversationProvider>
+    </VoiceAgentErrorBoundary>
+  );
 }
 
 export default ElevenLabsAgentWidget;

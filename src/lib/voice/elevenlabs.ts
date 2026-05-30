@@ -1,50 +1,30 @@
-import { Readable } from 'stream';
+// Required env vars:
+// ELEVENLABS_API_KEY              — your ElevenLabs API key (server-side: signed URL, voices, TTS)
+// ELEVENLABS_AGENT_ID             — the Conversational AI agent ID (server-side signed-url request)
+// NEXT_PUBLIC_ELEVENLABS_AGENT_ID — public agent ID for the client SDK (fallback when no server key)
 
-export class ElevenLabsTTS {
-  private apiKey: string;
-  private voiceId: string;
-  private baseUrl = 'https://api.elevenlabs.io/v1';
+const ELEVENLABS_API = "https://api.elevenlabs.io/v1";
 
-  constructor(apiKey: string, voiceId: string = 'pNInz6obpgDQGcFmaJgB') {
-    this.apiKey = apiKey;
-    this.voiceId = voiceId;
+/**
+ * Request a short-lived signed URL for a (possibly private) Conversational AI agent.
+ * The browser SDK connects with this via `startSession({ signedUrl })`, so the API
+ * key never leaves the server. Returns null if the server isn't configured.
+ */
+export async function getSignedUrl(): Promise<string | null> {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  const agentId = process.env.ELEVENLABS_AGENT_ID;
+  if (!apiKey || !agentId) return null;
+
+  const res = await fetch(
+    `${ELEVENLABS_API}/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
+    { headers: { "xi-api-key": apiKey } }
+  );
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`ElevenLabs signed-url error: ${res.status} ${detail}`);
   }
 
-  async synthesize(text: string, language: 'fr' | 'en' = 'fr'): Promise<Buffer> {
-    const response = await fetch(
-      `${this.baseUrl}/text-to-speech/${this.voiceId}/stream`,
-      {
-        method: 'POST',
-        headers: {
-          'Accept': 'audio/mpeg',
-          'Content-Type': 'application/json',
-          'xi-api-key': this.apiKey,
-        },
-        body: JSON.stringify({
-          text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`ElevenLabs API error: ${response.status} ${response.statusText} - ${errorText}`);
-      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  }
-
-  // Alternative: Use Twilio's native TTS (cheaper, less natural)
-  static getTwilioTTSUrl(text: string, language: 'fr' | 'en' = 'fr'): string {
-    const voice = language === 'fr' ? 'Polly.Celine' : 'Polly.Joanna';
-    const encodedText = encodeURIComponent(text);
-    return `https://api.twilio.com/calls/TODO/Twiml?Twiml=<Response><Say voice="${voice}">${encodedText}</Say></Response>`;
-  }
+  const data = await res.json();
+  return data.signed_url as string;
 }

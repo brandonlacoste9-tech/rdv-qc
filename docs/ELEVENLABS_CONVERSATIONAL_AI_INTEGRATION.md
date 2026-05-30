@@ -6,6 +6,30 @@
 
 ---
 
+## Current Implementation (simplified)
+
+The voice integration has been stripped down to a single, working path:
+
+- **Widget:** `src/components/voice/ElevenLabsAgentWidget.tsx` uses the official
+  `@elevenlabs/react` SDK (`ConversationProvider` + `useConversation`). It requests
+  mic permission, connects, shows status (idle/connecting/active/error), renders a
+  live transcript, and ends cleanly.
+- **Connection:** `GET /api/v2/elevenlabs/agent` returns a server-signed URL
+  (`ELEVENLABS_API_KEY` + `ELEVENLABS_AGENT_ID`) and falls back to a public
+  `NEXT_PUBLIC_ELEVENLABS_AGENT_ID`.
+- **Tools:** `POST /api/v2/elevenlabs/tools/availability` and `.../tools/booking`
+  proxy Planxo's existing `/api/v2/ai/availability` and `/api/v2/ai/book`.
+- **Pages:** `/demo/voice` (standalone) and `/dashboard/voice` (status card + widget).
+
+Required env vars: `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`,
+`NEXT_PUBLIC_ELEVENLABS_AGENT_ID`.
+
+The Twilio/Deepgram phone-call system, custom `ConversationManager`, and the
+voice workflow/credits subsystems have been removed. The sections below are the
+original design reference.
+
+---
+
 ## Table of Contents
 
 1. [Overview](#overview)

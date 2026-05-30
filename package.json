@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@calcom/embed-react": "^1.5.3",
+    "@elevenlabs/react": "^1.6.4",
     "@prisma/client": "^5.22.0",
     "@stripe/stripe-js": "^9.7.0",
     "@supabase/ssr": "^0.5.2",

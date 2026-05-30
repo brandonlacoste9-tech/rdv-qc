@@ -21,7 +21,7 @@ export class VoiceAgentErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[VoiceSchedulingAgent] Client-side crash caught:', error, errorInfo);
+    console.error('[ElevenLabsAgentWidget] Client-side crash caught:', error, errorInfo);
     // Also log a more readable version
     console.error('Error message:', error?.message);
     console.error('Stack:', error?.stack);
