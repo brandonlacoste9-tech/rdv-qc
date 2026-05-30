@@ -37,12 +37,26 @@ export async function GET(request: NextRequest) {
 
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
+    // Google's token endpoint does not return an email — fetch it from userinfo.
+    let accountEmail = "";
+    try {
+      const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+      if (userInfoRes.ok) {
+        const userInfo = await userInfoRes.json();
+        accountEmail = userInfo.email || "";
+      }
+    } catch {
+      // Non-blocking — email is cosmetic
+    }
+
     // Save to connected_calendars
     await supabase.from("connected_calendars").delete().eq("user_id", user.id).eq("provider", "google");
     await supabase.from("connected_calendars").insert({
       user_id: user.id,
       provider: "google",
-      account_email: tokens.email || "",
+      account_email: accountEmail,
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token || null,
       expires_at: expiresAt,
