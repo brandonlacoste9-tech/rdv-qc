@@ -4,11 +4,16 @@ import React, { useCallback, useRef, useState } from 'react';
 import { ConversationProvider, useConversation } from '@elevenlabs/react';
 import { VoiceAgentErrorBoundary } from './ErrorBoundary';
 
+const DEFAULT_AGENT_ID =
+  process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || 'agent_1901ksv92wxhffxbsg30b0mdhkv1';
+
 interface ElevenLabsAgentWidgetProps {
   /** Planxo user/host the agent books for (passed to tool routes). */
   username?: string;
   /** Event type slug to book. */
   eventTypeSlug?: string;
+  /** Override the Conversational AI agent ID (defaults to env / built-in). */
+  agentId?: string;
   mode?: 'demo' | 'dashboard';
   className?: string;
 }
@@ -45,9 +50,11 @@ function statusLabel(status: string, isSpeaking: boolean): { text: string; color
 function AgentConversation({
   mode,
   className,
+  agentId,
 }: {
   mode: 'demo' | 'dashboard';
   className: string;
+  agentId: string;
 }) {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -72,15 +79,16 @@ function AgentConversation({
       await navigator.mediaDevices.getUserMedia({ audio: true });
 
       const res = await fetch('/api/v2/elevenlabs/agent');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load agent config');
+      const data = await res.json().catch(() => ({}));
 
-      if (data.signedUrl) {
+      if (res.ok && data.signedUrl) {
         await startSession({ signedUrl: data.signedUrl });
-      } else if (data.agentId) {
-        await startSession({ agentId: data.agentId });
       } else {
-        throw new Error('No agent connection available');
+        // Connect with the public agent ID via WebRTC (lower latency).
+        await startSession({
+          agentId: data.agentId || agentId,
+          connectionType: 'webrtc',
+        });
       }
     } catch (err: any) {
       if (err?.name === 'NotAllowedError') {
@@ -91,7 +99,7 @@ function AgentConversation({
     } finally {
       setStarting(false);
     }
-  }, [startSession]);
+  }, [startSession, agentId]);
 
   const stop = useCallback(async () => {
     try {
@@ -238,6 +246,7 @@ function AgentConversation({
 export function ElevenLabsAgentWidget({
   username = 'planxo',
   eventTypeSlug = 'consultation-30min',
+  agentId = DEFAULT_AGENT_ID,
   mode = 'dashboard',
   className = '',
 }: ElevenLabsAgentWidgetProps) {
@@ -269,7 +278,7 @@ export function ElevenLabsAgentWidget({
   return (
     <VoiceAgentErrorBoundary>
       <ConversationProvider clientTools={clientTools}>
-        <AgentConversation mode={mode} className={className} />
+        <AgentConversation mode={mode} className={className} agentId={agentId} />
       </ConversationProvider>
     </VoiceAgentErrorBoundary>
   );
