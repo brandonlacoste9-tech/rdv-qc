@@ -31,14 +31,14 @@ export default function TextDemoPage() {
             </Link>
           </div>
           <h1 style={{ margin: 0, fontSize: 31, lineHeight: 1.12, fontFamily: "'Cal Sans', sans-serif" }}>
-            Planxo AI Text Scheduling Demo
+            Planxo AI Text Scheduling
           </h1>
           <p style={{ margin: '8px 0 0', color: c.textMuted, maxWidth: 760 }}>
-            Try the same scheduling flow your users get in production, fully text-based and connected to real availability.
+            Book appointments naturally through our AI-powered text assistant.
           </p>
         </div>
 
-        <TextSchedulingAssistant />
+        <TextSchedulingAssistant defaultUsername="planxo" defaultEventTypeSlug="consultation-30min" />
       </div>
     </div>
   );

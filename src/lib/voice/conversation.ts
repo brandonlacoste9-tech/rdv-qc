@@ -296,7 +296,7 @@ export class ConversationManager {
     }
 
     // Fallback (no tools provided)
-    return `Parfait! Votre rendez-vous est confirmé pour le ${this.formatDate(ctx.selectedDate)} à ${ctx.selectedTime}. Vous recevrez une confirmation par courriel à ${ctx.attendeeEmail}. (Mode démo - réservation simulée)`;
+    return `Désolé, je ne peux pas finaliser la réservation pour le moment car le système de réservation n'est pas disponible.`;
   }
 
   // Helper methods for intent detection

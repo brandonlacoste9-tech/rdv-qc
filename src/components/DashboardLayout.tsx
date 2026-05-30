@@ -19,6 +19,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: "/dashboard", label: "Dashboard", icon: Home },
     { href: "/event-types", label: "Event Types", icon: Calendar },
     { href: "/availability", label: "Availability", icon: Calendar },
+    { href: "/dashboard/voice", label: "Voice AI", icon: Calendar },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
 

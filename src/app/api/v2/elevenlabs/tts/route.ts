@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { text, voiceId } = body;
+    const { text, voiceId, language } = body;
 
     if (!text || !voiceId) {
       return NextResponse.json({ error: "Missing text or voiceId" }, { status: 400 });
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         text,
         model_id: "eleven_multilingual_v2",
+        language_code: language || "en",
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75,

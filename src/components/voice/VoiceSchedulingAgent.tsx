@@ -253,29 +253,38 @@ export function VoiceSchedulingAgent({
   // Load voices (authenticated vs public demo routes)
   const loadVoices = useCallback(async () => {
     setIsLoadingVoices(true);
-    const route = mode === 'dashboard' ? '/api/v2/elevenlabs/voices' : '/api/demo/elevenlabs/voices';
+    // Use production voices route
+    const route = '/api/v2/elevenlabs/voices';
     try {
       const res = await fetch(route);
       const data = await res.json();
       if (!res.ok) {
+        // Fallback to demo route if dashboard route fails (e.g. not logged in)
+        const demoRes = await fetch('/api/demo/elevenlabs/voices');
+        const demoData = await demoRes.json();
+        if (demoRes.ok && demoData.voices?.length) {
+          setVoices(demoData.voices);
+          setSelectedVoice(demoData.voices[0].id);
+          return;
+        }
+        
         console.error('[VoiceAgent] Voices API error:', res.status, data?.error);
-        setSpeechError(`Could not load voices (${res.status}: ${data?.error || 'unknown'}). Check ELEVENLABS_API_KEY in Vercel env vars.`);
+        setSpeechError(`Could not load voices. Check ELEVENLABS_API_KEY in environment variables.`);
         return;
       }
       if (data.voices?.length) {
         setVoices(data.voices);
         setSelectedVoice(data.voices[0].id);
       } else {
-        console.warn('[VoiceAgent] Voices API returned empty list', data);
-        setSpeechError('No voices returned from ElevenLabs. Check your API key and account.');
+        setSpeechError('No voices returned from ElevenLabs.');
       }
     } catch (e) {
       console.error('[VoiceAgent] Failed to load voices:', e);
-      setSpeechError('Network error loading voices. Check your connection.');
+      setSpeechError('Network error loading voices.');
     } finally {
       setIsLoadingVoices(false);
     }
-  }, [mode]);
+  }, []);
 
   // Initial setup
   useEffect(() => {
@@ -357,11 +366,11 @@ export function VoiceSchedulingAgent({
     stopSpeaking();
     setIsSpeaking(true);
 
-    const route = mode === 'dashboard' ? '/api/v2/elevenlabs/tts' : '/api/demo/elevenlabs/tts';
+    // Try production route first, then fallback to demo
+    let route = '/api/v2/elevenlabs/tts';
 
     try {
-      console.log('[VoiceAgent] Fetching TTS from:', route);
-      const res = await fetch(route, {
+      let res = await fetch(route, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -370,6 +379,19 @@ export function VoiceSchedulingAgent({
           language: getTTSLanguage(selectedLang),
         }),
       });
+
+      if (!res.ok) {
+        route = '/api/demo/elevenlabs/tts';
+        res = await fetch(route, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: text.trim(),
+            voiceId: selectedVoice,
+            language: getTTSLanguage(selectedLang),
+          }),
+        });
+      }
 
       if (!res.ok) throw new Error('TTS failed');
 

@@ -528,6 +528,38 @@ export default function DashboardPage() {
                 </div>
               </div>
             </a>
+
+            <a
+              href="/dashboard/voice"
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 12,
+                padding: 16,
+                textDecoration: "none",
+                color: colors.text,
+                transition: "all 0.2s",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = colors.accent;
+                (e.currentTarget as HTMLElement).style.background = `${colors.accent}10`;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = colors.border;
+                (e.currentTarget as HTMLElement).style.background = colors.cardBg;
+              }}
+            >
+              <Calendar size={20} color={colors.accent} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>AI Assistant</div>
+                <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                  Book with Voice or Text AI
+                </div>
+              </div>
+            </a>
           </div>
         </div>
 

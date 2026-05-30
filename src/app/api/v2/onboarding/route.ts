@@ -87,7 +87,7 @@ export async function PUT(request: NextRequest) {
       const starterTypes = [
         {
           title: "Appel de découverte",
-          slug: `appel-decouverte-${user.id.substring(0, 6)}`,
+          slug: "appel-decouverte",
           length: 15,
           location: "google-meet",
           color: "#c8a96e",
@@ -95,7 +95,7 @@ export async function PUT(request: NextRequest) {
         },
         {
           title: "Consultation",
-          slug: `consultation-${user.id.substring(0, 6)}`,
+          slug: "consultation-30min",
           length: 30,
           location: "google-meet",
           color: "#059669",
@@ -103,7 +103,7 @@ export async function PUT(request: NextRequest) {
         },
         {
           title: "Suivi",
-          slug: `suivi-${user.id.substring(0, 6)}`,
+          slug: "suivi-60min",
           length: 60,
           location: "google-meet",
           color: "#2563eb",

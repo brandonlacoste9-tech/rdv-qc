@@ -6,36 +6,33 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // The LLM will provide these simple parameters
     const { 
       name, 
       email, 
       start, // ISO 8601 UTC
       username = "planxo", 
-      eventTypeSlug = "appel-de-decouverte" 
+      eventSlug = "consultation-30min",
+      timeZone = "America/Toronto"
     } = body;
 
     if (!name || !email || !start) {
       return NextResponse.json({ error: "Missing required parameters: name, email, start" }, { status: 400 });
     }
 
-    // Proxy the call to the actual internal booking API
     const protocol = request.headers.get("x-forwarded-proto") || "http";
     const host = request.headers.get("host");
     const baseUrl = `${protocol}://${host}`;
 
+    // The real /api/v2/bookings POST handler expects:
+    // { username, eventSlug, startTime, guestName, guestEmail, timeZone, guestNotes? }
     const bookPayload = {
       username,
-      eventTypeSlug,
-      start,
-      attendee: {
-        name,
-        email,
-        timeZone: "America/Toronto"
-      },
-      metadata: {
-        notes: "Réservation effectuée par l'Assistant Vocal Planxo AI"
-      }
+      eventSlug,
+      startTime: start,
+      guestName: name,
+      guestEmail: email,
+      timeZone,
+      guestNotes: "Booked via Planxo AI Assistant"
     };
 
     const res = await fetch(`${baseUrl}/api/v2/bookings`, {
@@ -47,12 +44,12 @@ export async function POST(request: NextRequest) {
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.error?.message || "Échec de la réservation");
+      throw new Error(data.error?.message || "Booking failed");
     }
 
     return NextResponse.json({
       success: true,
-      message: "Rendez-vous réservé avec succès !",
+      message: "Appointment booked successfully!",
       booking: data.data
     });
   } catch (e: any) {
